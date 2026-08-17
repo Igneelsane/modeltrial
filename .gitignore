@@ -1,0 +1,15 @@
+# node / deps
+node_modules/
+npm-debug.log*
+
+# vercel
+.vercel/
+
+# editor / OS
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# local scratch
+*.log

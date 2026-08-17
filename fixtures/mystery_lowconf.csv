@@ -1,0 +1,25 @@
+campaign,date,region,value,feedback_score,notes
+C6,2026-05-01,South,62,5,new lead
+C4,2026-03-01,West,44,1,renewal
+C2,2026-03-01,East,97,3,follow up
+C1,2026-06-01,North,57,2,new lead
+C5,2026-05-01,South,56,1,follow up
+C2,2026-08-01,South,116,2,follow up
+C4,2026-04-01,West,119,2,new lead
+C2,2026-05-01,West,69,2,follow up
+C3,2026-04-01,East,65,1,follow up
+C1,2026-03-01,West,48,5,renewal
+C3,2026-06-01,West,102,3,new lead
+C4,2026-06-01,South,116,1,renewal
+C2,2026-06-01,West,65,4,new lead
+C6,2026-08-01,South,71,5,new lead
+C1,2026-06-01,East,57,4,renewal
+C3,2026-06-01,North,107,5,renewal
+C5,2026-07-01,South,58,3,renewal
+C6,2026-08-01,South,78,2,follow up
+C1,2026-08-01,North,82,4,renewal
+C1,2026-08-01,North,106,3,renewal
+C1,2026-05-01,East,76,1,follow up
+C6,2026-04-01,East,116,2,new lead
+C4,2026-06-01,West,116,3,follow up
+C6,2026-06-01,East,66,4,renewal

@@ -1,0 +1,25 @@
+send_date,campaign_name,segment,recipient_email,emails_sent,opens,clicks,unsubscribes,bounces,orders,revenue
+2026-07-28,Product Launch,Inactive,user0@example.com,17668,5982,386,48,577,22,92400
+2026-03-27,Monthly Digest,Prospects,user1@example.com,28755,11254,1898,24,1082,85,357000
+2026-08-23,Welcome Flow,Inactive,user2@example.com,25596,9684,956,62,216,51,214200
+2026-03-07,Re-engagement,Prospects,user3@example.com,23016,4871,563,24,631,56,235200
+2026-07-06,Welcome Flow,Customers,user4@example.com,23333,8226,547,74,578,56,235200
+2026-06-22,Welcome Flow,Customers,user5@example.com,26650,10273,1033,47,939,53,222600
+2026-04-27,Welcome Flow,Customers,user6@example.com,24049,5369,676,17,198,38,159600
+2026-06-19,Monthly Digest,Inactive,user7@example.com,28487,5694,729,43,983,36,151200
+2026-05-24,Monthly Digest,Inactive,user8@example.com,29124,6662,1125,28,849,73,306600
+2026-07-15,Re-engagement,Customers,user9@example.com,23477,5389,839,80,678,46,193200
+2026-06-08,Monthly Digest,Inactive,user10@example.com,23894,7676,933,43,575,110,462000
+2026-08-08,Product Launch,Customers,user11@example.com,20211,3133,313,47,365,28,117600
+2026-07-15,Product Launch,Prospects,user12@example.com,16734,5671,412,38,229,23,96600
+2026-03-21,Re-engagement,Prospects,user13@example.com,30740,9249,988,102,1117,98,411600
+2026-03-19,Product Launch,Inactive,user14@example.com,29166,11415,1072,23,769,73,306600
+2026-03-10,Welcome Flow,Inactive,user15@example.com,23892,5936,384,77,422,33,138600
+2026-03-07,Welcome Flow,Inactive,user16@example.com,7684,1294,153,8,177,8,33600
+2026-05-06,Product Launch,Inactive,user17@example.com,26282,7029,850,80,719,94,394800
+2026-06-26,Welcome Flow,Prospects,user18@example.com,26986,4066,634,55,222,31,130200
+2026-08-22,Monthly Digest,Customers,user19@example.com,30179,5456,871,92,864,98,411600
+2026-06-05,Monthly Digest,Inactive,user20@example.com,13283,2813,231,43,118,11,46200
+2026-08-06,Monthly Digest,Inactive,user21@example.com,18439,2713,166,18,166,15,63000
+2026-04-08,Product Launch,Inactive,user22@example.com,15403,6355,1056,8,460,49,205800
+2026-06-05,Re-engagement,Prospects,user23@example.com,31690,11255,920,50,316,51,214200

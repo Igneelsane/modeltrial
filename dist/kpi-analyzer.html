@@ -1,0 +1,2322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KPI Analyzer — upload a dataset, get the right KPIs</title>
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   KPI Analyzer — design system (PRD §10–11)
+   Monochrome · typography-led · minimal chrome
+   Palette: warm paper + near-black ink + greys.
+   The single muted accent (amber) is reserved for warnings only.
+   ═══════════════════════════════════════════════════════════════ */
+
+:root {
+  --ink: #141412;            /* near-black */
+  --ink-2: #55544d;          /* secondary text */
+  --ink-3: #8b8a7f;          /* tertiary text */
+  --ink-4: #b6b4a8;          /* faint text / rules */
+  --paper: #f6f5f0;          /* warm off-white */
+  --paper-2: #efede5;        /* hover / inset */
+  --card: #ffffff;
+  --line: #e6e4da;           /* hairline */
+  --line-2: #d3d1c4;
+  --warn: #8a5a00;           /* the ONE accent — warnings only */
+  --warn-bg: #f4ecda;
+  --serif: Georgia, 'Times New Roman', serif;
+  --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --mono: ui-monospace, 'SF Mono', 'Cascadia Mono', 'IBM Plex Mono', Menlo, Consolas, monospace;
+  --focus: 2px solid var(--ink);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection { background: var(--ink); color: var(--paper); }
+
+h1, h2, h3 { font-family: var(--serif); font-weight: 600; letter-spacing: -0.01em; margin: 0; }
+h1 { font-size: 30px; line-height: 1.15; margin-bottom: 14px; }
+h2 { font-size: 19px; line-height: 1.3; }
+h3 { font-size: 15px; line-height: 1.4; margin-bottom: 10px; }
+p { margin: 0 0 12px; }
+code { font-family: var(--mono); font-size: 12.5px; }
+.mono, .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+a { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+a:hover { color: #000; }
+button { font: inherit; cursor: pointer; }
+button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible {
+  outline: var(--focus); outline-offset: 2px;
+}
+
+.wrap { max-width: 1060px; margin: 0 auto; padding: 0 28px 96px; }
+
+/* ── topbar ────────────────────────────────────────────────────── */
+.topbar {
+  position: sticky; top: 0; z-index: 50;
+  background: rgba(246, 245, 240, 0.92);
+  backdrop-filter: blur(6px);
+  border-bottom: 1px solid var(--line);
+}
+.topbar-inner {
+  max-width: 1060px; margin: 0 auto; padding: 18px 28px 16px;
+  display: flex; align-items: baseline; justify-content: space-between; gap: 18px; flex-wrap: wrap;
+}
+.brand { font-family: var(--serif); font-size: 21px; font-weight: 700; letter-spacing: 0.005em; line-height: 1.1; }
+.brand small {
+  display: block;
+  font-family: var(--sans); font-size: 10px; font-weight: 600;
+  color: var(--ink-3); letter-spacing: 0.16em; text-transform: uppercase;
+  margin-top: 3px;
+}
+.top-right { display: flex; gap: 18px; align-items: center; }
+.privacy-badge {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 11.5px; color: var(--ink-2);
+}
+.privacy-badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--ink-3); flex: none; }
+.btn-clear {
+  background: none; border: none; padding: 0;
+  font-size: 12px; color: var(--ink-2); text-decoration: underline;
+  text-underline-offset: 3px; text-decoration-thickness: 1px;
+}
+.btn-clear:hover { color: var(--ink); }
+
+/* ── step rail ─────────────────────────────────────────────────── */
+.steps {
+  display: flex; align-items: center; gap: 0;
+  margin: 34px 0 30px; padding-bottom: 22px;
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+.steps .st {
+  display: flex; align-items: baseline; gap: 8px;
+  padding: 0 18px 0 0;
+  font-size: 10.5px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ink-4);
+  white-space: nowrap;
+}
+.steps .st .stnum { font-family: var(--mono); font-size: 10px; color: var(--ink-4); letter-spacing: 0.05em; }
+.steps .st.done { color: var(--ink-2); }
+.steps .st.done .stnum { color: var(--ink-3); }
+.steps .st.cur { color: var(--ink); }
+.steps .st.cur .stnum { color: var(--ink); }
+.steps .st.cur::after { content: ''; display: none; }
+.steps .sep { width: 22px; height: 1px; background: var(--line-2); margin: 0 18px 0 0; flex: none; }
+
+/* ── section kickers & cards ───────────────────────────────────── */
+.kicker {
+  font-size: 10.5px; font-weight: 600; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--ink-3);
+  margin: 0 0 14px;
+}
+.card { background: var(--card); border: 1px solid var(--line); padding: 34px 36px; margin-bottom: 22px; }
+.card > h2 { margin-bottom: 14px; }
+.muted { color: var(--ink-2); }
+.faint { color: var(--ink-3); font-size: 12.5px; }
+.lead { font-size: 15px; color: var(--ink-2); max-width: 620px; margin-bottom: 22px; }
+
+/* ── buttons ───────────────────────────────────────────────────── */
+.btn {
+  display: inline-block; appearance: none;
+  background: var(--ink); color: var(--paper);
+  border: 1px solid var(--ink);
+  padding: 11px 22px;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
+  text-decoration: none; border-radius: 0;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+.btn:hover { background: #000; border-color: #000; }
+.btn:active { transform: translateY(1px); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn.ghost { background: transparent; color: var(--ink); border-color: var(--line-2); }
+.btn.ghost:hover { background: var(--paper-2); border-color: var(--ink-3); }
+.btn.small { padding: 7px 14px; font-size: 10px; }
+.btn-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 24px; }
+
+/* ── upload hero ───────────────────────────────────────────────── */
+.hero { padding: 10px 0 8px; }
+.hero h1 { font-size: clamp(30px, 4.4vw, 44px); letter-spacing: -0.02em; }
+.hero .kicker { margin-bottom: 18px; }
+.drop {
+  border: 1px dashed var(--line-2);
+  background: var(--card);
+  padding: 64px 32px;
+  text-align: center;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.drop:hover { border-color: var(--ink-3); }
+.drop.over { border-color: var(--ink); background: var(--paper-2); }
+.drop .big { font-family: var(--serif); font-size: 21px; margin-bottom: 8px; letter-spacing: -0.005em; }
+.drop .hint { font-size: 12.5px; color: var(--ink-3); letter-spacing: 0.02em; }
+.drop input[type=file] { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.samples {
+  margin-top: 22px; padding-top: 16px;
+  border-top: 1px solid var(--line);
+  font-size: 13px; color: var(--ink-2);
+}
+.samples button {
+  background: none; border: none; padding: 0 2px;
+  font-size: 13px; color: var(--ink);
+  text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px;
+}
+.samples button:hover { color: #000; }
+.samples .sep { color: var(--line-2); margin: 0 10px; }
+.note-line { font-size: 12px; color: var(--ink-3); margin-top: 18px; letter-spacing: 0.01em; }
+
+/* ── stat strip (file facts) ───────────────────────────────────── */
+.stat-strip {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  border: 1px solid var(--line); border-bottom: none;
+  margin: 18px 0 22px;
+}
+.stat { background: var(--card); border-bottom: 1px solid var(--line); padding: 14px 18px 12px; }
+.stat + .stat { border-left: 1px solid var(--line); }
+.stat .sv { font-family: var(--serif); font-size: 22px; line-height: 1.15; }
+.stat .sl {
+  font-size: 9.5px; font-weight: 600; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--ink-3); margin-top: 2px;
+}
+
+/* ── notices ───────────────────────────────────────────────────── */
+.notice {
+  border-left: 2px solid var(--ink);
+  background: var(--paper-2);
+  padding: 12px 16px;
+  font-size: 13.5px; color: var(--ink-2);
+  margin: 0 0 18px;
+}
+.notice.warn { border-left-color: var(--warn); background: var(--warn-bg); color: #6b4700; }
+.notice b { color: var(--ink); }
+.notice.warn b { color: #5a3c00; }
+
+/* ── tables ────────────────────────────────────────────────────── */
+.tblwrap { overflow-x: auto; margin-top: 4px; }
+table.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+.tbl th {
+  text-align: left; font-weight: 600;
+  font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ink-3);
+  padding: 8px 12px 8px 0;
+  border-bottom: 2px solid var(--ink);
+  white-space: nowrap;
+}
+.tbl td { padding: 9px 12px 9px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+.tbl tr:last-child td { border-bottom: none; }
+.tbl .r { text-align: right; }
+.tbl .mono { font-size: 12px; }
+
+/* ── tags & flags ──────────────────────────────────────────────── */
+.tag {
+  display: inline-block;
+  font-family: var(--mono); font-size: 11px; color: var(--ink-2);
+  border: 1px solid var(--line-2); background: var(--paper);
+  padding: 3px 8px; margin: 0 6px 6px 0;
+  white-space: nowrap;
+}
+.flag {
+  display: inline-block;
+  font-size: 9.5px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 4px 9px; margin: 0 6px 6px 0;
+  border: 1px solid var(--line-2); color: var(--ink-2);
+}
+.flag.warn { border-color: var(--warn); color: var(--warn); background: var(--warn-bg); }
+
+/* ── detection screen ──────────────────────────────────────────── */
+.det-line { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 6px; }
+.det-big { font-family: var(--serif); font-size: clamp(24px, 3.4vw, 32px); letter-spacing: -0.015em; }
+.det-big b { font-weight: 700; }
+.conf-num { font-family: var(--mono); font-size: 26px; letter-spacing: -0.02em; }
+.conf-num .pct { font-size: 15px; color: var(--ink-3); }
+.det-note { font-size: 13.5px; color: var(--ink-2); margin: 4px 0 0; }
+.conf-track { height: 3px; background: var(--paper-2); border: 1px solid var(--line); margin: 18px 0 8px; }
+.conf-fill { height: 100%; background: var(--ink); transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1); }
+.conf-scale { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 9.5px; color: var(--ink-4); letter-spacing: 0.06em; }
+.sig-group { margin-bottom: 10px; }
+.sig-name { font-size: 9.5px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 6px; }
+.field-line { margin: 22px 0 4px; font-size: 12.5px; color: var(--ink-2); }
+.field-line b { color: var(--ink); font-weight: 600; }
+select.minimal {
+  appearance: none; -webkit-appearance: none;
+  font: inherit; font-size: 14px; color: var(--ink);
+  background: var(--card);
+  border: 1px solid var(--line-2); border-radius: 0;
+  padding: 10px 38px 10px 14px;
+  min-width: 220px;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2355544d' stroke-width='1.4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 14px center;
+}
+select.minimal:hover { border-color: var(--ink-3); }
+
+/* ── shortlist ─────────────────────────────────────────────────── */
+.section-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  margin: 26px 0 12px; padding-top: 20px;
+  border-top: 1px solid var(--line);
+  font-family: var(--sans);
+  font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ink);
+}
+.section-head .cnt { font-family: var(--mono); font-size: 12px; color: var(--ink-3); font-weight: 400; letter-spacing: 0.04em; }
+.kpi-item {
+  display: flex; gap: 14px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  padding: 18px 20px;
+  margin-bottom: 10px;
+}
+.kpi-item.ok { border-left: 2px solid var(--ink); }
+.kpi-item.missing { border-left: 2px solid var(--line-2); background: var(--paper); }
+.kpi-item label { display: flex; gap: 14px; align-items: flex-start; cursor: pointer; flex: 1; }
+.kpi-item label input { flex: none; margin-top: 3px; }
+.kname { font-family: var(--serif); font-size: 16.5px; font-weight: 600; line-height: 1.25; }
+.kunit { font-size: 9.5px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3); margin-left: 8px; border: 1px solid var(--line-2); padding: 2px 6px; vertical-align: 2px; }
+.ksum { font-size: 13px; color: var(--ink-2); margin: 3px 0 8px; display: block; }
+.kneed { font-size: 12px; color: var(--ink-3); }
+.kneed b { color: var(--ink-2); font-weight: 600; }
+.missing .kname { color: var(--ink-2); }
+.mapbox {
+  margin-top: 10px; padding: 10px 12px;
+  background: var(--paper); border: 1px solid var(--line);
+  display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+}
+.mapbox .mlabel { font-size: 12px; color: var(--ink-2); }
+.mapbox .mlabel code { color: var(--ink); }
+
+/* custom checkbox */
+input[type=checkbox] {
+  appearance: none; -webkit-appearance: none;
+  width: 17px; height: 17px; flex: none;
+  border: 1px solid var(--line-2); background: var(--card);
+  position: relative; cursor: pointer;
+  transition: background 0.1s ease, border-color 0.1s ease;
+}
+input[type=checkbox]:hover { border-color: var(--ink-3); }
+input[type=checkbox]:checked { background: var(--ink); border-color: var(--ink); }
+input[type=checkbox]:checked::after {
+  content: ''; position: absolute; left: 5px; top: 1.5px;
+  width: 4px; height: 8px;
+  border: solid var(--paper); border-width: 0 1.6px 1.6px 0;
+  transform: rotate(45deg);
+}
+
+/* ── results ───────────────────────────────────────────────────── */
+.result-head {
+  display: flex; justify-content: space-between; align-items: flex-end;
+  gap: 20px; flex-wrap: wrap; margin-bottom: 22px;
+}
+.result-head h2 { font-size: 24px; margin-bottom: 6px; }
+.result-head .meta { font-size: 12.5px; color: var(--ink-3); line-height: 1.7; }
+.result-head .meta b { color: var(--ink-2); font-weight: 600; }
+.kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+@media (max-width: 900px) { .kpi-grid { grid-template-columns: 1fr; } }
+.kpi-card {
+  border: 1px solid var(--line);
+  background: var(--card);
+  padding: 26px 28px;
+  display: flex; flex-direction: column; gap: 14px;
+  min-width: 0; /* allow grid track to shrink; wide tables scroll inside .tblwrap */
+}
+.kc-top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.kc-name { font-family: var(--serif); font-weight: 600; font-size: 16.5px; line-height: 1.3; }
+.kc-src { font-size: 9px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-4); white-space: nowrap; }
+.kc-value { font-family: var(--serif); font-size: 40px; font-weight: 600; line-height: 1; letter-spacing: -0.02em; font-variant-numeric: lining-nums; }
+.kc-value .kc-unit { font-family: var(--sans); font-size: 15px; font-weight: 400; color: var(--ink-3); margin-left: 4px; letter-spacing: 0; }
+.kc-rule { height: 1px; background: var(--line); }
+.kc-mid { display: flex; justify-content: space-between; align-items: center; gap: 14px; min-width: 0; }
+.trend { font-size: 13px; color: var(--ink-2); }
+.trend .tdelta { font-family: var(--mono); font-size: 13.5px; color: var(--ink); }
+.trend .tnote { display: block; font-size: 11px; color: var(--ink-4); margin-top: 2px; letter-spacing: 0.02em; }
+.trend.flat .tdelta { color: var(--ink-2); }
+.sparkline { flex: none; color: var(--ink); opacity: 0.9; }
+.interp {
+  font-family: var(--serif); font-style: italic; font-size: 15px; line-height: 1.55;
+  color: var(--ink); border-top: 1px solid var(--line); padding-top: 13px;
+}
+.flags-row { display: flex; flex-wrap: wrap; margin: -2px 0 0; }
+.kpi-card .tblwrap { margin-top: 0; }
+.kpi-card table.tbl { font-size: 12px; }
+.formula {
+  font-family: var(--mono); font-size: 11.5px; line-height: 1.7;
+  color: var(--ink-2); background: var(--paper);
+  border-left: 2px solid var(--ink);
+  padding: 10px 14px;
+  overflow-x: auto;
+}
+.formula .flabel {
+  display: block; font-family: var(--sans);
+  font-size: 8.5px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--ink-4); margin-bottom: 3px;
+}
+.srcs { font-family: var(--mono); font-size: 10.5px; color: var(--ink-4); line-height: 1.8; }
+.srcs b { color: var(--ink-3); font-weight: 600; }
+
+/* ── processing log ────────────────────────────────────────────── */
+details.log { margin-top: 26px; border: 1px solid var(--line); background: var(--card); }
+details.log summary {
+  cursor: pointer; padding: 13px 18px;
+  font-size: 10px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--ink-2); user-select: none;
+  display: flex; justify-content: space-between; align-items: center;
+}
+details.log summary:hover { color: var(--ink); }
+details.log summary::after { content: '▾'; font-size: 10px; color: var(--ink-4); }
+details.log[open] summary { border-bottom: 1px solid var(--line); }
+details.log[open] summary::after { transform: rotate(180deg); }
+.log-items { padding: 8px 18px 14px; font-family: var(--mono); font-size: 12px; }
+.li { padding: 4px 0; color: var(--ink-2); display: flex; gap: 10px; }
+.li .lvl { flex: none; color: var(--ink-4); }
+.li.warn .lvl { color: var(--warn); }
+.li.warn { color: #6b4700; }
+
+/* ── generic / misc ────────────────────────────────────────────── */
+.footer {
+  margin-top: 44px; padding-top: 20px;
+  border-top: 1px solid var(--line);
+  font-size: 11px; color: var(--ink-4); letter-spacing: 0.04em; line-height: 2;
+}
+.spinner {
+  display: inline-block; width: 11px; height: 11px;
+  border: 1.5px solid var(--line-2); border-top-color: var(--ink);
+  border-radius: 50%; animation: spin 0.7s linear infinite;
+  vertical-align: -1px; margin-right: 7px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.hidden { display: none !important; }
+
+@media (max-width: 640px) {
+  .wrap { padding: 0 16px 80px; }
+  .topbar-inner { padding: 14px 16px 12px; }
+  .card { padding: 24px 20px; }
+  .kpi-card { padding: 20px 18px; }
+  .kc-value { font-size: 32px; }
+  .steps { gap: 10px; }
+  .steps .sep { width: 10px; margin-right: 10px; }
+  .steps .st { padding-right: 0; }
+}
+
+/* ── identification facets ── */
+.tag.facet { border-style: solid; background: var(--paper); }
+.tag.facet i { font-style: normal; color: var(--ink-4); margin-left: 4px; text-transform: lowercase; font-family: var(--mono); font-size: 10px; }
+.tag.missing-facet { border-style: dashed; color: var(--ink-4); background: transparent; }
+
+/* ── proposals & gaps ── */
+.proposal {
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--ink);
+  background: var(--card);
+  padding: 18px 22px;
+  margin-bottom: 12px;
+}
+.prop-top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.prop-title { font-family: var(--serif); font-size: 16px; font-weight: 600; }
+.prop-strength {
+  font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.1em; text-transform: uppercase;
+  border: 1px solid var(--line-2); color: var(--ink-2); padding: 3px 8px; flex: none;
+}
+.prop-strength.high { border-color: var(--ink); color: var(--ink); }
+.prop-strength.medium { border-color: var(--ink-3); color: var(--ink-2); }
+.prop-strength.directional { border-style: dashed; color: var(--ink-3); }
+.prop-evidence { margin: 10px 0 8px; padding-left: 20px; font-size: 13px; color: var(--ink-2); }
+.prop-evidence li { margin-bottom: 5px; }
+.prop-evidence li::marker { color: var(--ink-3); }
+.prop-note { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-4); }
+.gap-list { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 860px) { .gap-list { grid-template-columns: 1fr; } }
+.gap-item { border: 1px dashed var(--line-2); padding: 14px 16px; background: var(--paper); min-width: 0; }
+.gap-title { font-size: 13px; font-weight: 600; }
+.gap-reason { font-size: 12.5px; color: var(--ink-2); margin-top: 4px; }
+.gap-unlock { font-size: 11px; color: var(--ink-3); margin-top: 6px; }
+.gap-unlock code { color: var(--ink-2); }
+
+
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+/* ===== samples.js ===== */
+/* Embedded sample datasets (deterministic — same output every load, zero network).
+   Marketing-focused per the revised brief: campaign, email/CRM, web/funnel, social,
+   sales/revenue, generic (inventory) and an intentionally ambiguous file. */
+
+globalThis.KPI = globalThis.KPI || {};
+(function () {
+  function rng(seed) { let s = seed >>> 0; return function () { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
+  const rand = rng(20260810);
+  function pick(a) { return a[Math.floor(rand() * a.length)]; }
+  function between(a, b) { return a + Math.floor(rand() * (b - a + 1)); }
+  function dstr(d) { return d.toISOString().slice(0, 10); }
+  function ddate(y, m, day) { return new Date(Date.UTC(y, m - 1, day)); }
+  function round(v) { return Math.round(v); }
+
+  // ── 1. Campaign performance (42 rows: 7 campaigns × Mar–Aug 2026) ──
+  function buildCampaigns() {
+    const CAMPS = [
+      { name: 'Brand Search', channel: 'Google Ads', spend: [18, 22, 20, 19, 23, 25], cpc: 1400, aov: 8200, cpm: 120, ctr: 0.040 },
+      { name: 'Non-Brand Search', channel: 'Google Ads', spend: [24, 28, 26, 27, 30, 33], cpc: 1900, aov: 7500, cpm: 125, ctr: 0.028 },
+      { name: 'Meta Retargeting', channel: 'Meta Ads', spend: [15, 17, 18, 16, 20, 21], cpc: 2500, aov: 6200, cpm: 90, ctr: 0.018 },
+      { name: 'Meta Prospecting', channel: 'Meta Ads', spend: [26, 29, 30, 28, 31, 34], cpc: 3000, aov: 6000, cpm: 95, ctr: 0.016 },
+      { name: 'LinkedIn ABM', channel: 'LinkedIn', spend: [9, 11, 12, 10, 14, 15], cpc: 4200, aov: 12500, cpm: 180, ctr: 0.009 },
+      { name: 'Email Newsletter', channel: 'Email', spend: [2.5, 3, 3.2, 3, 3.5, 4], cpc: 850, aov: 5500, cpm: 60, ctr: 0.055 },
+      { name: 'Creator Collabs', channel: 'Influencer', spend: [8, 9, 10, 9, 11, 12], cpc: 7800, aov: 9000, cpm: 240, ctr: 0.011 },
+    ];
+    const rows = [['date', 'campaign_id', 'campaign_name', 'channel', 'spend', 'impressions', 'clicks', 'conversions', 'revenue']];
+    let cid = 1;
+    for (const c of CAMPS) {
+      for (let m = 3; m <= 8; m++) {
+        const spend = c.spend[m - 3] * 10000;
+        let conv = round(spend / c.cpc);
+        if (m === 6) conv = round(conv * 0.68);          // June dip
+        if (m >= 7) conv = round(conv * 1.08);           // recovery
+        const impressions = round(spend / c.cpm * 1000);
+        const clicks = round(impressions * c.ctr);
+        rows.push([dstr(ddate(2026, m, 1)), 'CB-' + String(cid).padStart(2, '0'), c.name, c.channel,
+          String(spend), String(impressions), String(clicks), String(conv), String(conv * c.aov)]);
+        cid++;
+      }
+    }
+    rows.push(rows[3].slice());
+    return rows.map(r => r.join(',')).join('\n');
+  }
+
+  // ── 2. Email / CRM engagement (24 rows: 4 sends/mo × Mar–Aug 2026) ──
+  function buildEmail() {
+    const combos = [
+      { campaign: 'Product Launch', segment: 'Customers', sent: 28000, open: 0.30 },
+      { campaign: 'Monthly Digest', segment: 'Prospects', sent: 34000, open: 0.22 },
+      { campaign: 'Re-engagement', segment: 'Inactive', sent: 12000, open: 0.16 },
+      { campaign: 'Welcome Flow', segment: 'New', sent: 8000, open: 0.42 },
+    ];
+    const rows = [['send_date', 'campaign_name', 'segment', 'recipient_email', 'emails_sent', 'opens', 'clicks', 'unsubscribes', 'bounces', 'orders', 'revenue']];
+    for (let m = 3; m <= 8; m++) {
+      for (let cIdx = 0; cIdx < combos.length; cIdx++) {
+        const c = combos[cIdx];
+        const sent = round(c.sent * (0.85 + rand() * 0.3));
+        const opens = round(sent * c.open * (0.9 + rand() * 0.2));
+        const clicks = round(opens * (0.08 + rand() * 0.10));
+        const unsub = round(sent * (0.0004 + rand() * 0.003));
+        const bounce = round(sent * (0.008 + rand() * 0.03));
+        const orders = round(clicks * (0.05 + rand() * 0.07));
+        const bump = m === 6 ? 0.8 : 1;
+        rows.push([dstr(ddate(2026, m, 10)), c.campaign, c.segment, 'u' + (m * 10 + cIdx) + '@example.com', String(sent), String(opens), String(clicks),
+          String(unsub), String(bounce), String(round(orders * bump)), String(round(orders * bump * 4200))]);
+      }
+    }
+    rows.push(rows[4].slice());
+    return rows.map(r => r.join(',')).join('\n');
+  }
+
+  // ── 3. Web & funnel analytics (48 rows: 6 channels × Jan–Aug 2026) ──
+  function buildWeb() {
+    const CH = [
+      { name: 'Organic', s: 10000, goal: 0.055 },
+      { name: 'Paid Search', s: 7000, goal: 0.075 },
+      { name: 'Paid Social', s: 3000, goal: 0.020 },
+      { name: 'Direct', s: 4500, goal: 0.040 },
+      { name: 'Referral', s: 2000, goal: 0.035 },
+      { name: 'Email', s: 1500, goal: 0.050 },
+    ];
+    const rows = [['date', 'channel', 'sessions', 'users', 'pageviews', 'goal_completions', 'revenue']];
+    for (let m = 1; m <= 8; m++) {
+      for (const c of CH) {
+        const sessions = round(c.s * (0.85 + rand() * 0.3));
+        const goals = round(sessions * c.goal * (0.85 + rand() * 0.3));
+        rows.push([dstr(ddate(2026, m, 1)), c.name, String(sessions), String(round(sessions * 0.75)),
+          String(round(sessions * 2.6)), String(goals), String(goals * 2400)]);
+      }
+    }
+    rows.push(rows[5].slice());
+    return rows.map(r => r.join(',')).join('\n');
+  }
+
+  // ── 4. Social media performance (60 rows: 5 platforms × 12 weeks) ──
+  function buildSocial() {
+    const P = [
+      { name: 'Instagram', imp: 250000, like: 0.012, com: 0.0008, sha: 0.0005, clk: 0.004 },
+      { name: 'LinkedIn', imp: 60000, like: 0.009, com: 0.0012, sha: 0.0006, clk: 0.008 },
+      { name: 'X', imp: 120000, like: 0.008, com: 0.0004, sha: 0.0007, clk: 0.006 },
+      { name: 'YouTube', imp: 180000, like: 0.011, com: 0.0009, sha: 0.0002, clk: 0.003 },
+      { name: 'Facebook', imp: 90000, like: 0.010, com: 0.0006, sha: 0.0004, clk: 0.005 },
+    ];
+    const rows = [['date', 'platform', 'post_id', 'impressions', 'reach', 'likes', 'comments', 'shares', 'link_clicks']];
+    let pid = 1;
+    for (let w = 0; w < 12; w++) {
+      const d = new Date(Date.UTC(2026, 5, 1 + w * 7));
+      for (const p of P) {
+        const imp = round(p.imp * (0.7 + rand() * 0.6));
+        const reach = round(imp * (0.55 + rand() * 0.3));
+        rows.push([dstr(d), p.name, 'P-' + String(pid).padStart(3, '0'), String(imp), String(reach),
+          String(round(imp * p.like * (0.7 + rand() * 0.6))), String(round(imp * p.com)),
+          String(round(imp * p.sha)), String(round(imp * p.clk))]);
+        pid++;
+      }
+    }
+    rows.push(rows[2].slice());
+    return rows.map(r => r.join(',')).join('\n');
+  }
+
+  // ── 5. Sales / revenue orders (89 rows) ──
+  function buildSales() {
+    const rows = [['order_id', 'order_date', 'customer_id', 'region', 'product', 'qty', 'amount', 'discount']];
+    const PROD = ['Laptop Pro', 'Wireless Mouse', 'Mechanical Keyboard', '4K Monitor', 'USB-C Hub', 'Desk Stand'];
+    const REGIONS = ['North', 'South', 'East', 'West'];
+    let oid = 1001;
+    for (let m = 2; m <= 8; m++) {
+      const n = m === 2 ? 9 : 13;
+      for (let k = 0; k < n; k++) {
+        const qty = between(1, 5);
+        const amt = qty * pick([4999, 1299, 3499, 8999, 2499, 1799]);
+        const disc = m % 3 === 0 ? Math.round(amt * rand() * 0.1) : 0;
+        rows.push([String(oid++), dstr(ddate(2026, m, between(1, 28))), 'C' + String(between(1, 30)).padStart(2, '0'),
+          pick(REGIONS), pick(PROD), String(qty), String(amt), String(disc)]);
+      }
+    }
+    rows.push(rows[2].slice());
+    return rows.map(r => r.join(',')).join('\n');
+  }
+
+  // ── 6. Inventory (generic — deliberately outside the marketing list) ──
+  function buildInventory() {
+    const rows = [['sku', 'product_name', 'category', 'warehouse', 'stock_qty', 'reorder_point', 'unit_cost', 'supplier', 'last_restock_date']];
+    const CATS = ['Displays', 'Input', 'Audio', 'Accessories'];
+    const WH = ['Delhi', 'Mumbai', 'Bengaluru'];
+    const SUP = ['Acme Supply', 'Traders United', 'ImportZone', 'Prime Distributors'];
+    const PROD = ['27in Monitor', 'Wireless Keyboard', 'Noise-cancel Headset', 'Docking Station', 'Webcam HD', 'USB Mic', 'Laptop Stand', 'HDMI Cable', 'Bluetooth Speaker', 'Desk Lamp', 'Mousepad XL', '4K Webcam', 'USB Hub', 'Ergo Chair'];
+    for (let i = 0; i < 14; i++) {
+      const reorder = between(40, 120);
+      const stock = [12, 25, 8, 60][i % 4] || between(50, 300); // 4 SKUs below reorder point
+      rows.push(['SKU-' + String(100 + i), PROD[i], CATS[i % 4], WH[i % 3], String(stock), String(reorder),
+        String(pick([400, 900, 1500, 3200, 5500, 8000, 12000])), SUP[i % 4], dstr(ddate(2026, between(1, 7), between(1, 28)))]);
+    }
+    return rows.map(r => r.join(',')).join('\n');
+  }
+
+  // ── 7. Ambiguous (honesty demo — thin, mixed signals) ──
+  function buildMystery() {
+    const rows = [['campaign', 'date', 'region', 'value', 'feedback_score', 'notes']];
+    for (let m = 3; m <= 8; m++) {
+      for (const c of ['C1', 'C2', 'C3', 'C4']) {
+        rows.push([c, dstr(ddate(2026, m, 1)), pick(['North', 'South', 'East', 'West']),
+          String(between(40, 120)), String(between(1, 5)), pick(['follow up', 'renewal', 'new lead', 'upsell'])]);
+      }
+    }
+    return rows.map(r => r.join(',')).join('\n');
+  }
+
+  KPI.samples = {
+    campaigns: { name: 'Campaign performance — campaigns.csv', csv: buildCampaigns(), note: '42 rows · 7 campaigns × Mar–Aug 2026 · spend, impressions, clicks, conversions, revenue · 1 duplicate row (intentional)' },
+    email: { name: 'Email / CRM — email_blast.csv', csv: buildEmail(), note: '24 rows · 4 sends/month × Mar–Aug 2026 · opens, clicks, unsubscribes, bounces, orders · 1 duplicate row' },
+    web: { name: 'Web & funnel — web_analytics.csv', csv: buildWeb(), note: '48 rows · 6 channels × Jan–Aug 2026 · sessions, users, pageviews, goal completions · 1 duplicate row' },
+    social: { name: 'Social — social.csv', csv: buildSocial(), note: '60 rows · 5 platforms × 12 weeks · impressions, reach, likes, comments, shares, link clicks · 1 duplicate row' },
+    sales: { name: 'Sales — orders.csv', csv: buildSales(), note: '89 orders · Feb–Aug 2026 · qty, amount, discount · 1 duplicate row' },
+    inventory: { name: 'Inventory — stock.csv', csv: buildInventory(), note: '14 SKUs · stock vs reorder points · deliberately NOT marketing data (tests the “outside the list” path)' },
+    mystery: { name: 'Ambiguous — mystery.csv', csv: buildMystery(), note: '24 rows · thin mixed signals on purpose (tests the “I’m not sure” path)' },
+  };
+})();
+
+/* ===== parser.js ===== */
+/* parser.js — CSV parsing per PRD §9.1–9.2.
+   Encoding (UTF-8 / BOM / Latin-1), delimiter sniffing, quoted fields,
+   header detection, duplicate-header disambiguation, size/row/col caps.
+   Pure function: bytes/text → table. */
+
+globalThis.KPI = globalThis.KPI || {};
+KPI.parser = (function () {
+  const CAP = { bytes: 10 * 1024 * 1024, rows: 50000, cols: 200 };
+
+  function decodeBytes(buf) {
+    let utf8 = new TextDecoder('utf-8').decode(buf);
+    const bad = (utf8.match(/\uFFFD/g) || []).length;
+    if (bad > 0) {
+      const latin1 = new TextDecoder('iso-8859-1').decode(buf);
+      if ((latin1.match(/\uFFFD/g) || []).length < bad) {
+        return { text: latin1, encoding: 'latin1' };
+      }
+    }
+    return { text: utf8, encoding: 'utf-8' };
+  }
+
+  function sniffDelimiter(text) {
+    const head = text.slice(0, 20000);
+    const cands = [',', ';', '\t'];
+    let best = ',', bestScore = -1;
+    for (const c of cands) {
+      let cnt = 0, inQ = false;
+      for (const ch of head) {
+        if (ch === '"') inQ = !inQ;
+        else if (ch === c && !inQ) cnt++;
+      }
+      if (cnt > bestScore) { bestScore = cnt; best = c; }
+    }
+    return bestScore <= 0 ? ',' : best;
+  }
+
+  function parseRows(text, delim) {
+    const rows = [];
+    let row = [], field = '', inQ = false, i = 0, fieldStart = true;
+    while (i < text.length) {
+      const ch = text[i];
+      if (inQ) {
+        if (ch === '"') {
+          if (text[i + 1] === '"') { field += '"'; i += 2; continue; }
+          inQ = false; i++; continue;
+        }
+        field += ch; i++; continue;
+      }
+      // quotes only open a quoted field at the START of a field (RFC-style);
+      // a stray " inside an unquoted value is literal text
+      if (ch === '"' && fieldStart) { inQ = true; i++; continue; }
+      if (ch === delim) { row.push(field); field = ''; fieldStart = true; i++; continue; }
+      if (ch === '\n') { row.push(field); rows.push(row); row = []; field = ''; fieldStart = true; i++; continue; }
+      if (ch === '\r') { i++; continue; }
+      field += ch; fieldStart = false; i++;
+    }
+    if (field !== '' || row.length) { row.push(field); rows.push(row); }
+    return rows;
+  }
+
+  function looksNumeric(v) {
+    if (v == null) return false;
+    const s = String(v).trim();
+    if (s === '') return false;
+    if (/[A-Za-z]/.test(s)) return false;
+    const n = parseFloat(s.replace(/[₹$€£,%\s]/g, ''));
+    return isFinite(n);
+  }
+
+  function parseCSVText(text, opts) {
+    opts = opts || {};
+    if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1); // BOM
+    const delimiter = sniffDelimiter(text);
+    const rows = parseRows(text, delimiter);
+    if (rows.length === 0) throw new Error('The file appears to be empty.');
+    if (rows.length > CAP.rows) throw new Error('This file has ' + rows.length.toLocaleString('en-IN') + ' rows. v1 supports up to ' + CAP.rows.toLocaleString('en-IN') + '. Please trim the file and retry.');
+
+    // header detection: first row ≥60% non-numeric → header (PRD §9.2)
+    // opts.forceHeader = user confirmed row 1 is headers (headerless-file flow)
+    let headerless = false, header = [], data = rows;
+    const first = rows[0];
+    const nonEmpty = first.filter(v => String(v).trim() !== '').length;
+    const numeric = first.filter(v => looksNumeric(v)).length;
+    const isHeader = opts.forceHeader ? true : (nonEmpty > 0 && numeric / nonEmpty < 0.6);
+    if (isHeader) {
+      header = first.map((h, i) => String(h).trim() || ('col_' + (i + 1)));
+      data = rows.slice(1);
+    } else {
+      headerless = true;
+      header = first.map((_, i) => 'col_' + (i + 1));
+    }
+    if (data.length === 0) throw new Error('The file has a header row but no data rows.');
+
+    // duplicate header disambiguation (PRD §14 #17)
+    const seen = {};
+    header = header.map(h => {
+      const key = String(h).toLowerCase();
+      const n = seen[key] = (seen[key] || 0) + 1;
+      return n === 1 ? h : h + '_' + n;
+    });
+    if (header.length > CAP.cols) throw new Error('This file has ' + header.length + ' columns. v1 supports up to ' + CAP.cols + '.');
+
+    // pad ragged rows
+    const maxLen = header.length;
+    const padded = data.map(r => {
+      if (r.length === maxLen) return r;
+      const out = r.slice(0, maxLen);
+      while (out.length < maxLen) out.push('');
+      return out;
+    });
+
+    const warnings = [];
+    if (headerless) warnings.push({ level: 'warn', msg: 'First row looks like data, not headers. Generated column names col_1…col_n — confirm on the next screen.' });
+    const dupHeaders = header.filter((h, i) => h !== header[i] && h.endsWith('_2') && header.indexOf(String(h).replace(/_2$/, '')) === header.indexOf(h));
+    if (dupHeaders.length) warnings.push({ level: 'info', msg: 'Duplicate column names disambiguated with suffixes (' + dupHeaders.join(', ') + ').' });
+
+    return {
+      columns: header.map((h, i) => ({ header: h, index: i })),
+      rows: padded,
+      warnings,
+      meta: { delimiter, headerless, rowCount: padded.length, colCount: header.length },
+    };
+  }
+
+  function parseFile(buf, fileName, size) {
+    if (size > CAP.bytes) throw new Error('This file is ' + (size / 1048576).toFixed(1) + ' MB. v1 supports up to 10 MB. Please trim the file and retry.');
+    const { text, encoding } = decodeBytes(buf);
+    const table = parseCSVText(text);
+    table.meta.encoding = encoding;
+    table.meta.fileName = fileName;
+    table.meta.size = size;
+    table.meta.time = Date.now();
+    return table;
+  }
+
+  return { parseFile, parseCSVText, decodeBytes, CAP };
+})();
+
+/* ===== cleaner.js ===== */
+/* cleaner.js — type coercion, null stats, de-dup, granularity sniffing per PRD §9.
+   Nothing fails silently: every exclusion is counted and reported. */
+
+globalThis.KPI = globalThis.KPI || {};
+KPI.cleaner = (function () {
+
+  // ── date parsing (PRD §9.3: ambiguity rule → DD/MM default, logged by caller) ──
+  function valid(d) { return d && !isNaN(d.getTime()) && d.getFullYear() > 1900 && d.getFullYear() < 2100; }
+  function mk(y, m, d) { const dt = new Date(y, m - 1, d); return valid(dt) ? dt : null; }
+
+  function parseDateAny(s) {
+    if (s == null) return null;
+    if (typeof s === 'number') {
+      if (s > 20000 && s < 60000) { // Excel serial
+        const dt = new Date(Math.round((s - 25569) * 86400000));
+        return valid(dt) ? dt : null;
+      }
+      return null;
+    }
+    let t = String(s).trim();
+    if (!t || t.toLowerCase() === 'n/a' || t.toLowerCase() === 'na') return null;
+    if (/^\d{5}$/.test(t)) {
+      const n = parseInt(t, 10);
+      if (n > 20000 && n < 60000) { const dt = new Date(Math.round((n - 25569) * 86400000)); return valid(dt) ? dt : null; }
+      return null;
+    }
+    let m = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T ].*)?$/);
+    if (m) return mk(+m[1], +m[2], +m[3]);
+    m = t.match(/^(\d{1,2})[-/ ]([A-Za-z]{3,9})[-/ ](\d{2,4})$/);
+    if (m) {
+      const mo = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec']
+        .indexOf(m[2].toLowerCase().slice(0, 3));
+      if (mo >= 0) { let y = +m[3]; if (y < 100) y += 2000; return mk(y, mo + 1, +m[1]); }
+    }
+    m = t.match(/^(\d{1,2})[/.](\d{1,2})[/.](\d{2,4})$/);
+    if (m) {
+      let a = +m[1], b = +m[2], y = +m[3];
+      if (y < 100) y += 2000;
+      if (a > 12 && b <= 12) return mk(y, b, a);   // first is day → DD/MM
+      if (b > 12 && a <= 12) return mk(y, a, b);   // first is month → MM/DD
+      return mk(y, b, a);                           // ambiguous → DD/MM (non-US default, PRD §9.3)
+    }
+    return null;
+  }
+
+  // ── number parsing (₹ $ € £, % , Indian grouping, parentheses-negative) ──
+  function parseNum(s) {
+    if (s == null) return null;
+    if (typeof s === 'number') return isFinite(s) ? s : null;
+    let t = String(s).trim();
+    if (!t) return null;
+    const low = t.toLowerCase();
+    if (low === 'n/a' || low === 'na' || low === 'null' || low === '-' || low === '') return null;
+    let neg = false;
+    if (/^\(.*\)$/.test(t)) { neg = true; t = t.slice(1, -1); }
+    t = t.replace(/[₹$€£%\s]/g, '');
+    if (!/^[+-]?[\d,]*\.?\d*$/.test(t) || t === '' || t === '+' || t === '-' || t === '.') return null;
+    const body = t.replace(/^[+-]/, '');
+    if (/^\d{1,2},\d{2},\d{3}(\.\d+)?$/.test(body)) t = t.replace(/,/g, '');   // Indian 12,34,567
+    else if (/^\d{1,3}(,\d{3})+(\.\d+)?$/.test(body)) t = t.replace(/,/g, ''); // US 1,234,567
+    else if (/,\d{3}(\.\d+)?$/.test(body)) t = t.replace(/,/g, '');
+    else t = t.replace(/,/g, '');
+    const n = parseFloat(t);
+    if (!isFinite(n)) return null;
+    return neg ? -n : n;
+  }
+
+  const DATE_HINT = /(date|doj|joined|join|hire|exit|termination|relieving|leave|birth|dob|month|year|day|period)/;
+
+  // ── main ──
+  function cleanTable(table) {
+    const warnings = [];
+    const nCols = table.columns.length;
+    const nRows = table.rows.length;
+
+    // 1. infer column types from a sample (PRD §9.3)
+    const colMeta = table.columns.map((col, ci) => {
+      let dateOk = 0, numOk = 0, nonEmpty = 0, seen = 0;
+      const distinct = new Set();
+      const sampleVals = [];
+      const sampleCap = Math.min(nRows, 500);
+      for (let ri = 0; ri < sampleCap; ri++) {
+        const v = table.rows[ri][ci];
+        if (v == null || String(v).trim() === '') continue;
+        nonEmpty++;
+        if (parseDateAny(v)) dateOk++;
+        if (parseNum(v) !== null) numOk++;
+        if (seen < 30) { sampleVals.push(String(v)); seen++; }
+        if (distinct.size < 500) distinct.add(String(v));
+      }
+      const dateRate = nonEmpty ? dateOk / nonEmpty : 0;
+      const numRate = nonEmpty ? numOk / nonEmpty : 0;
+      const headerIsDate = DATE_HINT.test(col.header.toLowerCase());
+      let type;
+      if (headerIsDate && dateRate >= 0.5) type = 'date';
+      else if (numRate >= 0.8) type = 'numeric';
+      else if (dateRate >= 0.6) type = 'date';
+      else type = 'string';
+      // categorical vocab (status tokens)
+      let vocab = null;
+      if (type === 'string') {
+        const tokens = new Set(sampleVals.map(v => v.toLowerCase()));
+        const STATUS_TOKENS = ['terminated', 'resigned', 'left', 'exited', 'inactive', 'active'];
+        const hit = Array.from(tokens).filter(t => STATUS_TOKENS.some(x => t.includes(x)));
+        if (hit.length) vocab = hit.slice(0, 10);
+      }
+      return {
+        header: col.header, index: ci, type, parseRate: type === 'date' ? dateRate : numRate,
+        nonNullPct: nonEmpty / nRows, distinct: distinct.size,
+        vocab, samples: sampleVals.slice(0, 5),
+        rawSamples: table.rows.slice(0, 40).map(r => r[ci] == null ? '' : String(r[ci])),
+        stats: null,
+      };
+    });
+
+    // 1b. numeric stats for numeric columns (used by summary/outlier analyses)
+    for (const meta of colMeta) {
+      if (meta.type === 'numeric') {
+        const vals = [];
+        for (const r of table.rows) {
+          const n = parseNum(r[meta.index]);
+          if (n !== null) vals.push(n);
+        }
+        if (vals.length) {
+          vals.sort((a, b) => a - b);
+          const mean = vals.reduce((a, v) => a + v, 0) / vals.length;
+          const med = vals.length % 2 ? vals[(vals.length - 1) / 2] : (vals[vals.length / 2 - 1] + vals[vals.length / 2]) / 2;
+          meta.stats = { min: vals[0], max: vals[vals.length - 1], mean, median: med, n: vals.length };
+        }
+      }
+    }
+
+    // 2. coerce every cell
+    const coerced = table.rows.map(row => {
+      const v = new Array(nCols), s = row.slice();
+      for (let ci = 0; ci < nCols; ci++) {
+        const raw = row[ci];
+        const meta = colMeta[ci];
+        let cell = null;
+        if (raw != null && String(raw).trim() !== '') {
+          if (meta.type === 'date') { const d = parseDateAny(raw); cell = d ? { t: 'date', v: d } : null; }
+          else if (meta.type === 'numeric') { const n = parseNum(raw); cell = n !== null ? { t: 'num', v: n } : null; }
+          else cell = { t: 'str', v: String(raw).trim() };
+        }
+        v[ci] = cell;
+      }
+      return { v, s };
+    });
+
+    // 3. per-column parse-failure warnings
+    for (const meta of colMeta) {
+      if (meta.type === 'date' || meta.type === 'numeric') {
+        let fail = 0;
+        for (const r of table.rows) {
+          const raw = r[meta.index];
+          if (raw == null || String(raw).trim() === '') continue;
+          const ok = meta.type === 'date' ? parseDateAny(raw) : parseNum(raw) !== null;
+          if (!ok) fail++;
+        }
+        if (fail > 0) warnings.push({ level: 'warn', msg: fail + ' row' + (fail > 1 ? 's' : '') + " couldn't be parsed as " + meta.type + " in '" + meta.header + "' and were excluded from " + meta.type + "-based calculations." });
+      }
+    }
+
+    // 4. exact-duplicate row removal (PRD §9.4 / flaw #13)
+    const seenRows = new Map();
+    const kept = [];
+    let dupExact = 0;
+    for (const r of coerced) {
+      const key = r.s.join('\u0001');
+      if (seenRows.has(key)) { dupExact++; continue; }
+      seenRows.set(key, true);
+      kept.push(r);
+    }
+    if (dupExact > 0) warnings.push({ level: 'info', msg: dupExact + ' exact-duplicate row' + (dupExact > 1 ? 's' : '') + ' removed before analysis.' });
+
+    // 5. duplicate-id detection (flag, keep — may be legitimate line items)
+    const idCol = colMeta.find(m => /(^|_)(id|no|code)(_|$)/.test(m.header.toLowerCase()) || /(employee|order|customer|invoice|sku|emp|staff)/.test(m.header.toLowerCase()) && m.distinct > 1);
+    if (idCol) {
+      const vals = new Map();
+      for (const r of kept) {
+        const c = r.v[idCol.index];
+        if (c) { const k = String(c.v); vals.set(k, (vals.get(k) || 0) + 1); }
+      }
+      const dupIds = Array.from(vals.entries()).filter(([, n]) => n > 1);
+      if (dupIds.length > 0) {
+        const n = dupIds.reduce((a, [, c]) => a + c, 0) - dupIds.length;
+        warnings.push({ level: 'info', msg: n + ' row' + (n > 1 ? 's' : '') + " share duplicate " + idCol.header + " values — kept as-is (may be legitimate line items); formulas use distinct IDs where required." });
+      }
+    }
+
+    // 6. granularity sniffing (PRD §9.5)
+    let dateSpan = null, granularity = 'monthly';
+    const firstDate = colMeta.find(m => m.type === 'date');
+    if (firstDate) {
+      let min = null, max = null;
+      for (const r of kept) {
+        const c = r.v[firstDate.index];
+        if (c && c.t === 'date') { if (!min || c.v < min) min = c.v; if (!max || c.v > max) max = c.v; }
+      }
+      if (min && max) {
+        const days = Math.round((max - min) / 86400000);
+        dateSpan = { min, max, days };
+        if (days < 45) { granularity = 'weekly'; warnings.push({ level: 'info', msg: 'Date span is ' + days + ' days — using weekly periods.' }); }
+        else if (days > 730) { granularity = 'quarterly'; warnings.push({ level: 'info', msg: 'Date span is ' + days + ' days (> 2 years) — using quarterly periods; you can override per KPI in a later phase.' }); }
+      }
+    }
+
+    return {
+      columns: colMeta,
+      rows: kept,
+      warnings,
+      meta: {
+        ...table.meta,
+        rowCountAfterDedup: kept.length,
+        granularity, dateSpan,
+        duplicateRowsRemoved: dupExact,
+      },
+    };
+  }
+
+  return { cleanTable, parseDateAny, parseNum, DATE_HINT };
+})();
+
+/* ===== interpreter.js ===== */
+/* interpreter.js — shared number formatting (display + citations). */
+
+globalThis.KPI = globalThis.KPI || {};
+KPI.interpreter = (function () {
+
+  const inr = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 });
+
+  // number-only formatting per unit
+  function fmtValue(v, unit) {
+    if (v == null || isNaN(v)) return '—';
+    if (unit === 'currency') return '₹' + inr.format(Math.round(v));
+    if (unit === 'percent') return v.toFixed(1);
+    if (unit === 'ratio') return '×' + v.toFixed(1);
+    if (unit === 'count') return inr.format(Math.round(v));
+    return String(Math.round(v * 10) / 10);
+  }
+
+  // value + unit label for display ("₹41,200", "4.2%")
+  function fmtFull(v, unit) {
+    if (v == null || isNaN(v)) return '—';
+    if (unit === 'currency') return '₹' + inr.format(Math.round(v));
+    if (unit === 'percent') return v.toFixed(1) + '%';
+    if (unit === 'ratio') return '×' + v.toFixed(1);
+    return inr.format(Math.round(v));
+  }
+
+  function unitLabel(unit) {
+    return { currency: '₹', percent: '%', ratio: '×', count: '', score: '' }[unit] || '';
+  }
+
+  return { fmtValue, fmtFull, unitLabel };
+})();
+
+/* ===== roles.js ===== */
+/* roles.js — semantic role assignment. THE core of identification.
+   For every column, works out on its own what the column IS — from header
+   tokens, value patterns, and statistics — with per-column evidence and
+   confidence. No per-dataset branches: this runs identically on any CSV. */
+
+globalThis.KPI = globalThis.KPI || {};
+KPI.roles = (function () {
+
+  const CHANNEL_VOCAB = ['google', 'meta', 'facebook', 'instagram', 'linkedin', 'tiktok', 'youtube', 'organic', 'paid', 'direct', 'referral', 'email', 'influencer', 'affiliate', 'search', 'display', 'cpc', 'ppc', 'bing', 'quora'];
+  const PLATFORM_VOCAB = ['instagram', 'linkedin', 'youtube', 'tiktok', 'facebook', 'twitter', 'pinterest', 'threads', 'snapchat'];
+  const REGION_VOCAB = ['north', 'south', 'east', 'west', 'central', 'northeast', 'international', 'domestic', 'delhi', 'mumbai', 'bengaluru', 'chennai'];
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const URL_RE = /^(https?:\/\/|www\.)/i;
+  const CODE_RE = /^[A-Za-z]{0,8}[-_]?\d{1,6}$/;
+
+  // header tokens (headers split on non-alphanumerics, lowercased)
+  const T = {
+    id: ['id', 'no', 'number', 'code', 'sku'],
+    rate: ['rate', 'ctr', 'cvr', 'roas', 'rpc', 'per', 'avg', 'average', 'pct', 'percent', 'index', 'score', 'ratio'],
+    cost: ['spend', 'cost', 'budget', 'investment', 'adspend', 'price'],
+    revenue: ['revenue', 'sales', 'gmv', 'gross', 'turnover', 'income', 'amount', 'aov', 'order_value'],
+    volume: ['impressions', 'impression', 'reach', 'sessions', 'session', 'visits', 'visit', 'pageviews', 'pageview', 'views', 'view', 'clicks', 'click', 'opens', 'open', 'sent', 'delivered', 'users', 'user', 'traffic', 'unique', 'emails', 'followers'],
+    outcome: ['conversion', 'conversions', 'order', 'orders', 'lead', 'leads', 'signup', 'signups', 'goalcompletions', 'goal', 'completions', 'purchase', 'purchases', 'unsubscribe', 'unsubscribes', 'bounce', 'bounces', 'cartadds', 'registration', 'registrations', 'booking', 'bookings', 'enquiry', 'enquiries'],
+    engagement: ['like', 'likes', 'comment', 'comments', 'share', 'shares', 'save', 'saves', 'reply', 'replies', 'retweet', 'retweets', 'mention', 'mentions', 'engagement', 'engagements'],
+    stock: ['stock', 'reorder', 'inventory', 'qty', 'quantity'],
+    campaign: ['campaign'],
+    channel: ['channel', 'source', 'medium', 'utm'],
+    platform: ['platform', 'socialnetwork'],
+    region: ['region', 'territory', 'state', 'zone', 'area', 'city', 'country'],
+    segment: ['segment', 'list', 'audience', 'cohort'],
+    product: ['product', 'item', 'title', 'name'],
+    category: ['category', 'type', 'class', 'group'],
+    warehouse: ['warehouse', 'facility', 'location', 'store'],
+    order: ['order', 'invoice', 'transaction', 'purchase'],
+    customer: ['customer', 'client', 'account'],
+    post: ['post', 'content', 'asset', 'creative'],
+    emailh: ['email', 'recipient', 'subscriber'],
+  };
+
+  function tokensOf(header) {
+    return String(header).toLowerCase().split(/[^a-z0-9]+/).filter(t => t.length > 0);
+  }
+  function hasToken(tokens, list) {
+    return list.some(w => tokens.includes(w));
+  }
+  function vocabHits(values, vocab) {
+    let n = 0;
+    for (const v of values) {
+      const l = String(v).toLowerCase();
+      if (vocab.some(t => l.includes(t))) n++;
+    }
+    return n;
+  }
+
+  function metricSubRole(tokens, currencyHint) {
+    if (hasToken(tokens, T.rate)) return 'rate';
+    if (hasToken(tokens, T.stock)) return hasToken(tokens, ['reorder']) ? 'reorder' : 'stock';
+    if (hasToken(tokens, T.cost)) return 'cost';
+    if (hasToken(tokens, T.revenue)) return 'revenue';
+    if (hasToken(tokens, T.volume)) return 'volume';
+    if (hasToken(tokens, T.outcome)) return 'outcome';
+    if (hasToken(tokens, T.engagement)) return 'engagement';
+    return 'plain';
+  }
+
+  function dimIdentity(tokens, values) {
+    if (hasToken(tokens, T.campaign)) return 'campaign';
+    if (hasToken(tokens, T.platform) || vocabHits(values, PLATFORM_VOCAB) >= 1) return 'platform';
+    if (hasToken(tokens, T.channel) || vocabHits(values, CHANNEL_VOCAB) >= 1) return 'channel';
+    if (hasToken(tokens, T.region) || vocabHits(values, REGION_VOCAB) >= 1) return 'region';
+    if (hasToken(tokens, T.segment)) return 'segment';
+    if (hasToken(tokens, T.product)) return 'product';
+    if (hasToken(tokens, T.category)) return 'category';
+    if (hasToken(tokens, T.warehouse)) return 'warehouse';
+    if (hasToken(tokens, T.order)) return 'order';
+    if (hasToken(tokens, T.customer)) return 'customer';
+    if (hasToken(tokens, T.post)) return 'post';
+    if (hasToken(tokens, T.emailh)) return 'email';
+    return 'categorical';
+  }
+
+  function idIdentity(tokens) {
+    if (hasToken(tokens, T.campaign)) return 'campaign';
+    if (hasToken(tokens, T.order)) return 'order';
+    if (hasToken(tokens, T.customer)) return 'customer';
+    if (hasToken(tokens, T.post)) return 'post';
+    if (hasToken(tokens, T.segment)) return 'segment';
+    if (hasToken(tokens, T.product)) return 'product';
+    if (hasToken(tokens, T.emailh)) return 'email';
+    return 'identifier';
+  }
+
+  function unitFor(sub) {
+    if (sub === 'cost' || sub === 'revenue') return 'currency';
+    if (sub === 'rate') return 'percent';
+    return 'count';
+  }
+
+  function confTag(score) { return score >= 0.8 ? 'high' : score >= 0.5 ? 'medium' : 'low'; }
+
+  function assign(cleaned) {
+    const out = [];
+    const summary = { time: [], ids: [], dimensions: [], texts: [], metrics: { cost: [], revenue: [], volume: [], outcome: [], engagement: [], rate: [], stock: [], reorder: [], plain: [] } };
+
+    for (const col of cleaned.columns) {
+      const header = col.header;
+      const tokens = tokensOf(header);
+      const values = col.samples || [];
+      const currencyHint = /[₹$€£]/.test((col.rawSamples || []).join(' '));
+      const ev = [];
+      let role = null, sub = null, identity = null, negative = false, score = 0;
+
+      if (col.type === 'date') {
+        role = 'time';
+        score = 0.95;
+        ev.push('parses as dates (' + Math.round(col.parseRate * 100) + '%)');
+        summary.time.push({ index: col.index, header, confidence: 'high', evidence: ev });
+      } else if (col.type === 'numeric') {
+        if (hasToken(tokens, T.id)) {
+          // numeric identifier (e.g. order_id stored as integers)
+          role = 'id';
+          identity = idIdentity(tokens);
+          score = 0.9;
+          ev.push('numeric identifier column (header suggests "' + (identity === 'identifier' ? 'id' : identity) + '")');
+          summary.ids.push({ index: col.index, header, identity, confidence: 'high', evidence: ev });
+        } else {
+          role = 'metric';
+          sub = metricSubRole(tokens, currencyHint);
+          if (tokens.length) { score = 0.9; ev.push('header suggests "' + sub + '"'); }
+          else { score = 0.55; ev.push('numeric values only'); }
+          if (sub === 'outcome' && hasToken(tokens, ['unsubscribe', 'unsubscribes', 'bounce', 'bounces'])) { negative = true; ev.push('a negative outcome (attrition)'); }
+          if (sub === 'rate') ev.push('looks like a precomputed ratio, not a raw count');
+          summary.metrics[sub].push({ index: col.index, header, negative, confidence: confTag(score), evidence: ev, unit: unitFor(sub), stats: col.stats });
+        }
+      } else if (col.type === 'string') {
+        const distinctRatio = col.nonNullPct ? col.distinct / Math.max(1, col.nonNullPct * cleaned.rows.length) : 1;
+        const emails = values.filter(v => EMAIL_RE.test(String(v).trim())).length;
+        const urls = values.filter(v => URL_RE.test(String(v).trim())).length;
+        const codeLike = values.length ? values.filter(v => CODE_RE.test(String(v).trim())).length / values.length : 0;
+        if (hasToken(tokens, T.id) || (distinctRatio > 0.55 && codeLike > 0.5)) {
+          role = 'id';
+          identity = idIdentity(tokens);
+          score = 0.9;
+          ev.push('identifier column (' + col.distinct + ' distinct values)');
+          if (identity !== 'identifier') ev.push('header suggests "' + identity + '"');
+          summary.ids.push({ index: col.index, header, identity, confidence: 'high', evidence: ev });
+        } else if (emails >= 1) {
+          role = 'text'; identity = 'email';
+          score = 0.9;
+          ev.push(emails + ' sample value' + (emails > 1 ? 's' : '') + ' match email pattern');
+          summary.texts.push({ index: col.index, header, identity: 'email', confidence: 'high', evidence: ev });
+        } else if (urls >= 1) {
+          role = 'text'; identity = 'url';
+          score = 0.85;
+          ev.push(urls + ' sample value' + (urls > 1 ? 's' : '') + ' look like URLs');
+          summary.texts.push({ index: col.index, header, identity: 'url', confidence: 'high', evidence: ev });
+        } else {
+          role = 'dimension';
+          identity = dimIdentity(tokens, values);
+          score = identity === 'categorical' ? 0.6 : 0.9;
+          ev.push(col.distinct + ' distinct values');
+          if (identity !== 'categorical') ev.push('header/value patterns suggest "' + identity + '"');
+          summary.dimensions.push({ index: col.index, header, identity, confidence: confTag(score), evidence: ev });
+        }
+      } else {
+        continue;
+      }
+
+      out.push({ index: col.index, header, role, sub, identity, negative, confidence: confTag(score), evidence: ev, unit: sub ? unitFor(sub) : null });
+    }
+
+    return { columns: out, summary };
+  }
+
+  return { assign };
+})();
+
+/* ===== identify.js ===== */
+/* identify.js — dataset characterization from the role evidence (the revised brief's
+   core step). Not a router: the archetype label is an OUTPUT of the evidence, and
+   downstream analysis is derived from roles, never keyed to this label. */
+
+globalThis.KPI = globalThis.KPI || {};
+KPI.identify = (function () {
+
+  const ARCH = {
+    campaign: {
+      label: 'Campaign performance data',
+      desc: 'Per-campaign spend and results (impressions, clicks, conversions) over time.',
+      weights: { campaign_dim: 0.9, cost: 0.9, outcome: 0.9, volume: 0.6, revenue: 0.5, time: 0.3 },
+    },
+    crm_email: {
+      label: 'Email / CRM engagement data',
+      desc: 'Email sends and engagement — opens, clicks, unsubscribes, bounces, orders.',
+      weights: { email_signal: 0.9, segment: 0.5, outcome: 0.7, volume: 0.7, revenue: 0.5, time: 0.3, unsub_bounce: 0.7 },
+    },
+    web_funnel: {
+      label: 'Web & funnel analytics',
+      desc: 'Site traffic by source/channel — sessions, users, pageviews, goal completions.',
+      weights: { channel_dim: 0.8, volume: 0.8, outcome: 0.7, revenue: 0.4, time: 0.3, rate: 0.4 },
+    },
+    social: {
+      label: 'Social media performance data',
+      desc: 'Platform-level content performance — impressions, reach, likes, comments, shares.',
+      weights: { platform_dim: 0.9, engagement: 0.9, volume: 0.6, time: 0.3 },
+    },
+    sales_revenue: {
+      label: 'Sales / revenue data',
+      desc: 'Orders and transactions — order IDs, amounts, customers, products.',
+      weights: { order_id: 0.9, revenue: 0.8, dim: 0.4, time: 0.3 },
+    },
+    other: {
+      label: 'Generic business data',
+      desc: 'Structured business data that doesn\u2019t match a marketing archetype — analyzed generically.',
+      weights: { id: 0.4, dim: 0.4, metric: 0.4, time: 0.2 },
+    },
+  };
+
+  function characterize(cleaned, roles) {
+    const S = roles.summary;
+    const M = S.metrics;
+
+    const facets = {
+      time: S.time.length ? { found: true, detail: 'date column(s): ' + S.time.map(t => t.header).join(', '), confidence: S.time[0].confidence } : { found: false, detail: 'no date column', confidence: null },
+      campaign_dim: S.dimensions.some(d => d.identity === 'campaign') || S.ids.some(i => i.identity === 'campaign') ? { found: true, detail: 'campaign identifiers/names present', confidence: 'high' } : { found: false, detail: 'none found', confidence: null },
+      channel_dim: S.dimensions.some(d => d.identity === 'channel') ? { found: true, detail: S.dimensions.filter(d => d.identity === 'channel').map(d => d.header).join(', '), confidence: 'high' } : { found: false, detail: 'none found', confidence: null },
+      platform_dim: S.dimensions.some(d => d.identity === 'platform') ? { found: true, detail: S.dimensions.filter(d => d.identity === 'platform').map(d => d.header).join(', '), confidence: 'high' } : { found: false, detail: 'none found', confidence: null },
+      order_id: S.ids.some(i => i.identity === 'order') ? { found: true, detail: S.ids.filter(i => i.identity === 'order').map(i => i.header).join(', '), confidence: 'high' } : { found: false, detail: 'none found', confidence: null },
+      email_signal: S.texts.some(t => t.identity === 'email') || S.ids.some(i => i.identity === 'email') ? { found: true, detail: 'email-like column(s) present', confidence: 'high' } : { found: false, detail: 'no recipient/email column', confidence: null },
+      segment: S.dimensions.some(d => d.identity === 'segment') ? { found: true, detail: S.dimensions.filter(d => d.identity === 'segment').map(d => d.header).join(', '), confidence: 'high' } : { found: false, detail: 'none found', confidence: null },
+      cost: M.cost.length ? { found: true, detail: M.cost.map(m => m.header).join(', '), confidence: M.cost[0].confidence } : { found: false, detail: 'no cost/spend column', confidence: null },
+      revenue: M.revenue.length ? { found: true, detail: M.revenue.map(m => m.header).join(', '), confidence: M.revenue[0].confidence } : { found: false, detail: 'no revenue/amount column', confidence: null },
+      volume: M.volume.length ? { found: true, detail: M.volume.map(m => m.header).join(', '), confidence: M.volume[0].confidence } : { found: false, detail: 'no traffic/volume column', confidence: null },
+      outcome: M.outcome.length ? { found: true, detail: M.outcome.map(m => m.header).join(', '), confidence: M.outcome[0].confidence } : { found: false, detail: 'no outcome column (conversions, orders, …)', confidence: null },
+      unsub_bounce: M.outcome.some(m => m.negative) ? { found: true, detail: M.outcome.filter(m => m.negative).map(m => m.header).join(', '), confidence: 'high' } : { found: false, detail: 'none found', confidence: null },
+      engagement: M.engagement.length ? { found: true, detail: M.engagement.map(m => m.header).join(', '), confidence: M.engagement[0].confidence } : { found: false, detail: 'no engagement column', confidence: null },
+      rate: M.rate.length ? { found: true, detail: M.rate.map(m => m.header).join(', '), confidence: M.rate[0].confidence } : { found: false, detail: 'none found', confidence: null },
+    };
+
+    const present = f => f.found ? 1 : 0;
+
+    // generic structural facets (for the "other" archetype)
+    const hasId = S.ids.length > 0, hasDim = S.dimensions.length > 0;
+    const hasMetric = [M.cost, M.revenue, M.volume, M.outcome, M.engagement, M.rate, M.stock, M.reorder, M.plain].some(a => a.length);
+
+    const scores = {};
+    scores.campaign = present(facets.campaign_dim) * ARCH.campaign.weights.campaign_dim + present(facets.cost) * ARCH.campaign.weights.cost + present(facets.outcome) * ARCH.campaign.weights.outcome + present(facets.volume) * ARCH.campaign.weights.volume + present(facets.revenue) * ARCH.campaign.weights.revenue + present(facets.time) * ARCH.campaign.weights.time;
+    scores.crm_email = present(facets.email_signal) * ARCH.crm_email.weights.email_signal + present(facets.segment) * ARCH.crm_email.weights.segment + present(facets.outcome) * ARCH.crm_email.weights.outcome + present(facets.volume) * ARCH.crm_email.weights.volume + present(facets.revenue) * ARCH.crm_email.weights.revenue + present(facets.time) * ARCH.crm_email.weights.time + present(facets.unsub_bounce) * ARCH.crm_email.weights.unsub_bounce;
+    scores.web_funnel = present(facets.channel_dim) * ARCH.web_funnel.weights.channel_dim + present(facets.volume) * ARCH.web_funnel.weights.volume + present(facets.outcome) * ARCH.web_funnel.weights.outcome + present(facets.revenue) * ARCH.web_funnel.weights.revenue + present(facets.time) * ARCH.web_funnel.weights.time + present(facets.rate) * ARCH.web_funnel.weights.rate;
+    scores.social = present(facets.platform_dim) * ARCH.social.weights.platform_dim + present(facets.engagement) * ARCH.social.weights.engagement + present(facets.volume) * ARCH.social.weights.volume + present(facets.time) * ARCH.social.weights.time;
+    scores.sales_revenue = present(facets.order_id) * ARCH.sales_revenue.weights.order_id + present(facets.revenue) * ARCH.sales_revenue.weights.revenue + (hasDim ? ARCH.sales_revenue.weights.dim : 0) + present(facets.time) * ARCH.sales_revenue.weights.time;
+    scores.other = (hasId ? ARCH.other.weights.id : 0) + (hasDim ? ARCH.other.weights.dim : 0) + (hasMetric ? ARCH.other.weights.metric : 0) + present(facets.time) * ARCH.other.weights.time;
+
+    const ranked = Object.entries(scores).sort((a, b) => b[1] - a[1]);
+    const top = ranked[0], runner = ranked[1];
+
+    // confidence: dampened runner-up + absolute evidence floor (v3.1-style honesty)
+    // conf = top / (top + 0.35·runner); tiers by raw score; unclear when thin.
+    let archetype = top[0], confidence = null, tier = 'none', unclear = false, unclearReason = '';
+    const rel = runner[1] > 0 ? top[1] / (top[1] + 0.35 * runner[1]) : 1;
+
+    if (top[1] >= 2.2) { confidence = Math.min(rel, 0.99); tier = 'strong'; }
+    else if (top[1] >= 1.5) { confidence = Math.min(rel, 0.70); tier = 'weak'; }
+    else if (top[0] === 'other' && top[1] >= 1.2) { confidence = Math.min(rel, 0.70); tier = 'weak'; }
+    else {
+      unclear = true; tier = 'unclear'; confidence = null;
+      unclearReason = 'None of the known dataset shapes reaches the evidence threshold (raw score ' + top[1].toFixed(1) + ' of 1.5 needed). What I could confirm: ' +
+        Object.entries(facets).filter(([, f]) => f.found).map(([k, f]) => k.replace(/_/g, ' ') + ' (' + f.detail + ')').join('; ') + '.';
+    }
+
+    // reasoning list for display (found facets + key absences)
+    const reasoning = Object.entries(facets)
+      .filter(([, f]) => f.found)
+      .map(([k, f]) => ({ label: k.replace(/_/g, ' '), found: true, confidence: f.confidence, detail: f.detail }));
+
+    return {
+      archetype, label: ARCH[archetype].label, desc: ARCH[archetype].desc,
+      confidence, tier, unclear, unclearReason,
+      runnerUp: { archetype: runner[0], label: ARCH[runner[0]].label, score: runner[1] },
+      scores, facets, reasoning,
+    };
+  }
+
+  return { characterize, ARCH };
+})();
+
+/* ===== analyze.js ===== */
+/* analyze.js — derives the analysis plan from the role profile (revised brief).
+   No fixed menu: trends appear only if a time column exists, breakdowns only if a
+   dimension exists, efficiency only if cost+outcome exist, etc. Every computed
+   result carries an insight that cites the actual numbers behind it. */
+
+globalThis.KPI = globalThis.KPI || {};
+KPI.analyze = (function () {
+
+  const MS_DAY = 86400000;
+  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  /* ── time helpers ── */
+  function granFor(rows, dateCol) {
+    let min = null, max = null;
+    for (const r of rows) { const c = r.v[dateCol]; if (c && c.t === 'date') { if (!min || c.v < min) min = c.v; if (!max || c.v > max) max = c.v; } }
+    if (!min || !max) return 'monthly';
+    const days = Math.round((max - min) / MS_DAY);
+    return days < 45 ? 'weekly' : days > 730 ? 'quarterly' : 'monthly';
+  }
+  function periodKey(d, g) {
+    if (g === 'monthly') return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    if (g === 'quarterly') return d.getFullYear() + '-Q' + (Math.floor(d.getMonth() / 3) + 1);
+    if (g === 'annual') return String(d.getFullYear());
+    const day = (d.getDay() + 6) % 7;
+    const t = new Date(d); t.setDate(d.getDate() - day);
+    const iso = new Date(t); iso.setDate(iso.getDate() - 3);
+    const w = Math.round(((t - new Date(iso.getFullYear(), 0, 4)) / MS_DAY + (new Date(iso.getFullYear(), 0, 4).getDay() + 6) % 7 - 3) / 7);
+    return iso.getFullYear() + '-W' + String(w).padStart(2, '0');
+  }
+  function periodLabel(key, g) {
+    if (g === 'monthly') { const [y, m] = key.split('-').map(Number); return MONTHS[m - 1] + ' ' + y; }
+    if (g === 'quarterly') { const [y, q] = key.split('-Q').map(Number); return 'Q' + q + ' ' + y; }
+    if (g === 'annual') return key;
+    return key.replace('-W', ' · W');
+  }
+  function periodStart(key, g) {
+    if (g === 'monthly') { const [y, m] = key.split('-').map(Number); return new Date(y, m - 1, 1); }
+    if (g === 'quarterly') { const [y, q] = key.split('-Q').map(Number); return new Date(y, (q - 1) * 3, 1); }
+    if (g === 'annual') return new Date(+key, 0, 1);
+    const [y, w] = key.split('-W').map(Number);
+    const jan4 = new Date(y, 0, 4);
+    const mon = new Date(jan4); mon.setDate(jan4.getDate() - ((jan4.getDay() + 6) % 7) + (w - 1) * 7);
+    return mon;
+  }
+  function buckets(rows, dateCol, g) {
+    const map = new Map();
+    for (const r of rows) {
+      const c = r.v[dateCol]; if (!c || c.t !== 'date') continue;
+      const key = periodKey(c.v, g);
+      if (!map.has(key)) map.set(key, { key, label: periodLabel(key, g), start: periodStart(key, g), rows: [] });
+      map.get(key).rows.push(r);
+    }
+    return Array.from(map.values()).sort((a, b) => a.start - b.start);
+  }
+
+  const num = (r, i) => r.v[i] && r.v[i].t === 'num' ? r.v[i].v : null;
+  const str = (r, i) => r.v[i] && r.v[i].t === 'str' ? String(r.v[i].v) : null;
+  const dt = (r, i) => r.v[i] && r.v[i].t === 'date' ? r.v[i].v : null;
+
+  function sumOf(rows, ci) { let s = 0; for (const r of rows) { const v = num(r, ci); if (v !== null) s += v; } return s; }
+  function hdr(cols, i) { return cols[i] ? cols[i].header : '?'; }
+  function titleize(h) { return h.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()); }
+
+  function fmt(v, unit) {
+    if (v == null) return '—';
+    if (unit === 'currency') return '₹' + Math.round(v).toLocaleString('en-IN');
+    if (unit === 'percent') return v.toFixed(1) + '%';
+    if (unit === 'ratio') return '×' + v.toFixed(1);
+    return Math.round(v).toLocaleString('en-IN');
+  }
+
+  function flagsFor(cleaned, extra) {
+    const f = [];
+    if (cleaned.rows.length < 30) f.push('directional only — sample of ' + cleaned.rows.length + ' rows is small');
+    return f.concat(extra || []);
+  }
+
+  /* ── analysis builders ── */
+  function trendItem(col, timeCol, cleaned) {
+    return {
+      id: 'trend_' + col.index, title: titleize(col.header) + ' over time', kind: 'trend',
+      cols: { metric: col.header, time: hdr(cleaned.columns, timeCol) },
+      unit: col.unit, computable: true,
+      compute() {
+        const rows = cleaned.rows.filter(r => dt(r, timeCol) && num(r, col.index) !== null);
+        const g = granFor(rows, timeCol);
+        const periods = buckets(rows, timeCol, g).map(b => ({ period: b.label, value: sumOf(b.rows, col.index), n: b.rows.length }));
+        const last = periods[periods.length - 1], prev = periods[periods.length - 2];
+        const pct = prev && prev.value !== 0 ? (last.value - prev.value) / Math.abs(prev.value) * 100 : null;
+        const direction = pct == null ? 'flat' : Math.abs(pct) < 5 ? 'flat' : pct > 0 ? 'up' : 'down';
+        let insight = col.header + ': ' + fmt(last.value, col.unit) + ' in ' + last.period;
+        if (prev) insight += ' — ' + (pct >= 0 ? 'up' : 'down') + ' ' + Math.abs(pct).toFixed(0) + '% vs ' + prev.period + ' (' + fmt(prev.value, col.unit) + ')';
+        else insight += ' (first period)';
+        if (periods.length >= 3) insight += '. Trend over ' + periods.length + ' periods: ' + (direction === 'flat' ? 'broadly flat' : direction === 'up' ? 'rising' : 'falling') + '.';
+        else insight += '. Only ' + periods.length + ' period' + (periods.length === 1 ? '' : 's') + ' — no trend claimed.';
+        return { kind: 'trend', periods, value: last.value, unit: col.unit, insight, direction, formula: 'Σ ' + col.header + ' per ' + g + ' period', columns: { metric: col.header, time: hdr(cleaned.columns, timeCol) }, flags: flagsFor(cleaned), confidence: periods.length >= 3 ? 'high' : 'directional' };
+      },
+    };
+  }
+
+  function breakdownItem(dim, metric, cleaned) {
+    const primary = metric.sub === 'rate' || metric.sub === 'score' ? 'mean' : 'sum';
+    return {
+      id: 'breakdown_' + dim.index + '_' + metric.index, title: titleize(metric.header) + ' by ' + dim.header, kind: 'breakdown',
+      cols: { dimension: dim.header, metric: metric.header },
+      unit: metric.unit, computable: true,
+      compute() {
+        const groups = new Map();
+        for (const r of cleaned.rows) {
+          const d = str(r, dim.index); if (d == null) continue;
+          const v = num(r, metric.index); if (v === null) continue;
+          if (!groups.has(d)) groups.set(d, { sum: 0, n: 0 });
+          const g = groups.get(d); g.sum += v; g.n++;
+        }
+        const total = Array.from(groups.values()).reduce((a, g) => a + g.sum, 0);
+        const rows = Array.from(groups.entries()).map(([name, g]) => ({
+          name, value: primary === 'mean' ? g.sum / g.n : g.sum, n: g.n, share: total ? g.sum / total * 100 : 0,
+        })).sort((a, b) => b.value - a.value);
+        const top = rows[0];
+        const topN = rows.slice(0, 8);
+        const rest = rows.slice(8);
+        const table = {
+          cols: [dim.header, titleize(metric.header) + (primary === 'mean' ? ' (avg)' : ''), 'Share'],
+          rows: topN.map(r => [r.name, fmt(r.value, metric.unit), r.share.toFixed(1) + '%'])
+            .concat(rest.length ? [[rest.length + ' others', fmt(rest.reduce((a, r) => a + r.value, 0), metric.unit), rest.reduce((a, r) => a + r.share, 0).toFixed(1) + '%']] : []),
+        };
+        let insight = top ? top.name + ' leads: ' + top.share.toFixed(0) + '% of ' + colLower(metric.header) + ' (' + fmt(top.value, metric.unit) + (primary === 'mean' ? ' avg' : '') + ')' : 'no data';
+        if (rows.length > 1) insight += '; ' + rows[1].name + ' follows at ' + rows[1].share.toFixed(0) + '%.';
+        if (rows.length > 30) insight += ' ' + rows.length + ' distinct ' + dim.header + ' values — showing the top 8.';
+        return { kind: 'breakdown', table, top: top ? top.name : null, topShare: top ? top.share : null, unit: metric.unit, insight, formula: primary === 'sum' ? 'Σ ' + metric.header + ' grouped by ' + dim.header : 'mean of ' + metric.header + ' grouped by ' + dim.header, columns: { dimension: dim.header, metric: metric.header }, flags: flagsFor(cleaned), confidence: 'high' };
+      },
+    };
+  }
+
+  function colLower(h) { return h.toLowerCase(); }
+
+  function efficiencyItem(cost, outcome, dims, cleaned, kind) {
+    const isRoas = kind === 'roas';
+    const channelDim = dims.find(d => d.identity === 'channel') || dims.find(d => d.identity === 'campaign');
+    return {
+      id: kind + '_' + cost.index + '_' + outcome.index,
+      title: isRoas ? 'Return on ad spend (revenue ÷ spend)' : 'Cost per ' + colLower(outcome.header) + ' (spend ÷ ' + colLower(outcome.header) + ')',
+      kind: 'ratio',
+      cols: isRoas ? { revenue: cost.header, spend: outcome.header } : { cost: cost.header, outcome: outcome.header },
+      unit: isRoas ? 'ratio' : 'currency', computable: true,
+      compute() {
+        const spend = sumOf(cleaned.rows, cost.index);
+        const out = sumOf(cleaned.rows, outcome.index);
+        let insight, value, table = null, formula;
+        let rows = [];
+        if (isRoas) {
+          value = spend ? out / spend : null;
+          formula = 'Σ ' + outcome.header + ' ÷ Σ ' + cost.header;
+          insight = 'Every ₹1 spent returned ' + fmt(value, 'ratio') + ' in ' + outcome.header + (outcome.header === 'revenue' ? '' : ' — note: using ' + outcome.header + ' as the return figure') + ' (₹' + Math.round(out).toLocaleString('en-IN') + ' returned on ₹' + Math.round(spend).toLocaleString('en-IN') + ' spent).';
+        } else {
+          value = out ? spend / out : null;
+          formula = 'Σ ' + cost.header + ' ÷ Σ ' + outcome.header;
+          insight = 'Each ' + colLower(outcome.header) + ' cost ' + fmt(value, 'currency') + ' on average (' + fmt(out, 'count') + ' ' + outcome.header + ' from ' + fmt(spend, 'currency') + ' spend).';
+        }
+        if (channelDim) {
+          const groups = new Map();
+          for (const r of cleaned.rows) {
+            const d = str(r, channelDim.index); if (d == null) continue;
+            const s = num(r, cost.index), o = num(r, outcome.index);
+            if (s === null || o === null) continue;
+            if (!groups.has(d)) groups.set(d, { spend: 0, out: 0 });
+            const g = groups.get(d); g.spend += s; g.out += o;
+          }
+          rows = Array.from(groups.entries()).map(([name, g]) => ({
+            name, spend: g.spend, out: g.out, ratio: g.out ? g.spend / g.out : null, share: spend ? g.spend / spend * 100 : 0,
+          })).sort((a, b) => (isRoas ? (b.out / Math.max(1, b.spend)) : (b.ratio ?? 1e18)) - (isRoas ? (a.out / Math.max(1, a.spend)) : (a.ratio ?? 1e18)));
+          table = {
+            cols: [channelDim.header, 'Spend', colLower(outcome.header), isRoas ? 'ROAS' : 'Cost per ' + colLower(outcome.header).replace(/s$/, '')],
+            rows: rows.map(r => [r.name, fmt(r.spend, 'currency'), fmt(r.out, 'count'), isRoas ? fmt(r.out / Math.max(1, r.spend), 'ratio') : fmt(r.ratio, 'currency')]),
+          };
+          const best = rows[0];
+          if (best && isRoas) insight += ' Best channel: ' + best.name + ' at ' + fmt(best.out / Math.max(1, best.spend), 'ratio') + '.';
+          if (best && !isRoas) insight += ' Best channel: ' + best.name + ' at ' + fmt(best.ratio, 'currency') + ' per ' + colLower(outcome.header).replace(/s$/, '') + '.';
+        }
+        return { kind: 'ratio', value, unit: this.unit, insight, formula, columns: this.cols, table, rawRows: rows, flags: flagsFor(cleaned), confidence: cleaned.rows.length < 30 ? 'directional' : 'high' };
+      },
+    };
+  }
+
+  function rateItem(vol, out, timeCol, cleaned, kind) {
+    const label = kind === 'conversion' ? 'conversion rate' : kind === 'bounce' ? 'bounce rate' : kind === 'unsub' ? 'unsubscribe rate' : 'engagement rate';
+    return {
+      id: 'rate_' + kind + '_' + vol.index + '_' + out.index, title: titleize(label) + ' (' + out.header + ' ÷ ' + vol.header + ')', kind: 'rate',
+      cols: { volume: vol.header, outcome: out.header },
+      unit: 'percent', computable: true,
+      compute() {
+        const vTotal = sumOf(cleaned.rows, vol.index), oTotal = sumOf(cleaned.rows, out.index);
+        const overall = vTotal ? oTotal / vTotal * 100 : null;
+        let insight = label + ': ' + fmt(overall, 'percent') + ' (' + fmt(oTotal, 'count') + ' ' + out.header + ' across ' + fmt(vTotal, 'count') + ' ' + vol.header + ')';
+        let table = null;
+        if (timeCol) {
+          const rows = cleaned.rows.filter(r => dt(r, timeCol));
+          const g = granFor(rows, timeCol);
+          const periods = buckets(rows, timeCol, g).map(b => {
+            const v = sumOf(b.rows, vol.index), o = sumOf(b.rows, out.index);
+            return { period: b.label, rate: v ? o / v * 100 : null, n: o };
+          });
+          table = { cols: ['Period', label, out.header], rows: periods.map(p => [p.period, fmt(p.rate, 'percent'), fmt(p.n, 'count')]) };
+          if (periods.length >= 3) {
+            const best = periods.reduce((a, p) => (p.rate != null && p.rate > (a.rate ?? -1)) ? p : a, { rate: -1 });
+            insight += '. Peaked at ' + fmt(best.rate, 'percent') + ' in ' + best.period + '.';
+          }
+        }
+        return { kind: 'rate', value: overall, unit: 'percent', insight, formula: 'Σ ' + out.header + ' ÷ Σ ' + vol.header + ' × 100', columns: this.cols, table, flags: flagsFor(cleaned), confidence: 'high' };
+      },
+    };
+  }
+
+  function stockItem(stockCol, reorderCol, cleaned) {
+    return {
+      id: 'stock_gaps', title: 'Stock vs reorder points', kind: 'stock',
+      cols: { stock: stockCol.header, reorder: reorderCol.header },
+      unit: 'count', computable: true,
+      compute() {
+        const gaps = [];
+        for (const r of cleaned.rows) {
+          const s = num(r, stockCol.index), rp = num(r, reorderCol.index);
+          if (s === null || rp === null) continue;
+          if (s < rp) gaps.push({ sku: str(r, 0) || 'row', stock: s, reorder: rp, short: rp - s });
+        }
+        const total = cleaned.rows.length;
+        const table = { cols: [cleaned.columns[0] ? cleaned.columns[0].header : 'Item', 'Stock', 'Reorder point', 'Shortfall'], rows: gaps.slice(0, 10).map(g => [g.sku, String(g.stock), String(g.reorder), String(g.short)]) };
+        let insight = gaps.length
+          ? gaps.length + ' of ' + total + ' items are below their reorder point' + (gaps[0] ? ' — e.g. ' + gaps[0].sku + ' (stock ' + gaps[0].stock + ' vs reorder ' + gaps[0].reorder + ')' : '') + '.'
+          : 'All ' + total + ' items are at or above their reorder points.';
+        return { kind: 'stock', table, value: gaps.length, unit: 'count', insight, formula: 'stock_qty < reorder_point per item', columns: this.cols, flags: flagsFor(cleaned), confidence: gaps.length ? 'high' : 'directional' };
+      },
+    };
+  }
+
+  function countsItem(idCol, timeCol, cleaned) {
+    return {
+      id: 'counts_' + idCol.index, title: 'Distinct ' + (idCol.identity === 'identifier' ? idCol.header : idCol.identity + 's') + ' per period', kind: 'counts',
+      cols: { id: idCol.header, time: hdr(cleaned.columns, timeCol) },
+      unit: 'count', computable: true,
+      compute() {
+        const rows = cleaned.rows.filter(r => dt(r, timeCol));
+        const g = granFor(rows, timeCol);
+        const periods = buckets(rows, timeCol, g).map(b => {
+          const set = new Set();
+          for (const r of b.rows) { const v = str(r, idCol.index); if (v != null) set.add(v); }
+          return { period: b.label, value: set.size, n: b.rows.length };
+        });
+        const last = periods[periods.length - 1], prev = periods[periods.length - 2];
+        const pct = prev && prev.value ? (last.value - prev.value) / prev.value * 100 : null;
+        let insight = 'Distinct ' + (idCol.identity === 'identifier' ? idCol.header : idCol.identity + 's') + ': ' + last.value + ' in ' + last.period;
+        if (pct != null) insight += ' — ' + (pct >= 0 ? 'up' : 'down') + ' ' + Math.abs(pct).toFixed(0) + '% vs ' + prev.period + ' (' + prev.value + ')';
+        return { kind: 'counts', periods, value: last.value, unit: 'count', insight, formula: 'distinct count of ' + idCol.header + ' per ' + g + ' period', columns: this.cols, flags: flagsFor(cleaned), confidence: periods.length >= 3 ? 'high' : 'directional' };
+      },
+    };
+  }
+
+  function summaryItem(col, dim, timeCol, cleaned) {
+    return {
+      id: 'summary_' + col.index, title: titleize(col.header) + ' — distribution', kind: 'summary',
+      cols: { metric: col.header },
+      unit: col.unit, computable: true,
+      compute() {
+        const st = col.stats;
+        if (!st) return null;
+        // extremes with context (dimension value + period label of the extreme rows)
+        let maxRow = null, minRow = null;
+        for (const r of cleaned.rows) {
+          const v = num(r, col.index); if (v === null) continue;
+          if (!maxRow || v > num(maxRow, col.index)) maxRow = r;
+          if (!minRow || v < num(minRow, col.index)) minRow = r;
+        }
+        const ctx = r => {
+          const parts = [];
+          if (dim) { const d = str(r, dim.index); if (d != null) parts.push(d); }
+          if (timeCol) { const t = dt(r, timeCol); if (t) parts.push(t.toISOString().slice(0, 7)); }
+          return parts.join(', ') || 'row';
+        };
+        const table = { cols: ['Stat', col.header], rows: [['Min', fmt(st.min, col.unit)], ['Max', fmt(st.max, col.unit)], ['Mean', fmt(st.mean, col.unit)], ['Median', fmt(st.median, col.unit)], ['Non-null rows', String(st.n)]] };
+        const insight = col.header + ' ranges ' + fmt(st.min, col.unit) + '–' + fmt(st.max, col.unit) + ', mean ' + fmt(st.mean, col.unit) + ', median ' + fmt(st.median, col.unit) +
+          (maxRow ? '. Highest: ' + fmt(num(maxRow, col.index), col.unit) + ' (' + ctx(maxRow) + ')' : '') +
+          (minRow ? '; lowest: ' + fmt(num(minRow, col.index), col.unit) + ' (' + ctx(minRow) + ')' : '');
+        return { kind: 'summary', table, value: st.mean, unit: col.unit, insight, formula: 'min / max / mean / median of ' + col.header, columns: this.cols, flags: flagsFor(cleaned), confidence: st.n >= 30 ? 'high' : 'directional' };
+      },
+    };
+  }
+
+  /* ── plan derivation (the heart: purely from the role profile) ── */
+  function buildPlan(cleaned, roles) {
+    const S = roles.summary, M = S.metrics;
+    const items = [];
+    const time = S.time[0] || null;
+    const dims = S.dimensions;
+    const allMetrics = [].concat(M.cost, M.revenue, M.volume, M.outcome, M.engagement, M.rate, M.plain, M.stock, M.reorder);
+    const seen = new Set();
+    const metrics = allMetrics.filter(m => (seen.has(m.index) ? false : (seen.add(m.index), true)));
+
+    // 1. trends — only if a time column exists
+    if (time && metrics.length) metrics.forEach(m => items.push(trendItem(m, time.index, cleaned)));
+    else if (metrics.length) items.push({ id: 'trends', title: 'Trends over time', kind: 'trend', computable: false, why_not: 'No date column found — trends need a time dimension. Add a date column to unlock this.' });
+
+    // 2. breakdowns — only if a dimension exists; primary metric per dimension
+    for (const dim of dims) {
+      const primary = M.outcome[0] || M.revenue[0] || M.volume[0] || M.engagement[0] || M.rate[0] || M.plain[0];
+      if (primary) items.push(breakdownItem(dim, primary, cleaned));
+    }
+    if (!dims.length && metrics.length) items.push({ id: 'breakdowns', title: 'Breakdown by category', kind: 'breakdown', computable: false, why_not: 'No categorical dimension column found (e.g. channel, region, product) — add one to unlock segmentation analysis.' });
+
+    // 3. efficiency — only if cost + outcome/revenue exist
+    if (M.cost.length && M.outcome.length) items.push(efficiencyItem(M.cost[0], M.outcome[0], dims, cleaned, 'cpo'));
+    else if (M.cost.length && !M.outcome.length) items.push({ id: 'cpo', title: 'Cost per outcome', kind: 'ratio', computable: false, why_not: 'Spend data exists (' + M.cost[0].header + ') but no outcome column (conversions, orders, …) — add one to unlock efficiency analysis.' });
+    else if (!M.cost.length) items.push({ id: 'cpo', title: 'Cost per outcome', kind: 'ratio', computable: false, why_not: 'No cost/spend column found — efficiency (cost per outcome) cannot be computed.' });
+    if (M.cost.length && M.revenue.length) items.push(efficiencyItem(M.cost[0], M.revenue[0], dims, cleaned, 'roas'));
+    else if (M.cost.length && !M.revenue.length) items.push({ id: 'roas', title: 'Return on ad spend', kind: 'ratio', computable: false, why_not: 'Spend data exists but no revenue column — ROAS cannot be computed.' });
+
+    // 4. rates — only if volume + outcome exist
+    if (M.volume.length && M.outcome.length) {
+      const out = M.outcome.find(m => !m.negative) || M.outcome[0];
+      items.push(rateItem(M.volume[0], out, time ? time.index : null, cleaned, 'conversion'));
+    }
+    const negOuts = M.outcome.filter(m => m.negative);
+    if (negOuts.length && M.volume.length) {
+      for (const neg of negOuts) {
+        const kind = /unsub/.test(neg.header) ? 'unsub' : 'bounce';
+        items.push(rateItem(M.volume[0], neg, time ? time.index : null, cleaned, kind));
+      }
+    }
+    // engagement rate — social data
+    if (M.engagement.length && M.volume.length) items.push(rateItem(M.volume[0], M.engagement[0], time ? time.index : null, cleaned, 'engagement'));
+
+    // 5. stock gaps — only if stock + reorder columns exist
+    if (M.stock.length && M.reorder.length) items.push(stockItem(M.stock[0], M.reorder[0], cleaned));
+
+    // 6. distinct counts — only if id + time exist
+    if (time && S.ids.length) S.ids.forEach(idCol => items.push(countsItem(idCol, time.index, cleaned)));
+
+    // 7. distribution summary for every metric
+    metrics.forEach(m => items.push(summaryItem(m, dims[0] || null, time ? time.index : null, cleaned)));
+
+    return items;
+  }
+
+  return { buildPlan, fmt, granFor, buckets };
+})();
+
+/* ===== propose.js ===== */
+/* propose.js — decision proposals derived from computed results.
+   Every proposal cites the actual numbers behind it. If the data cannot ground
+   a decision, that is stated explicitly in the gaps list — we never force one. */
+
+globalThis.KPI = globalThis.KPI || {};
+KPI.propose = (function () {
+
+  function generate(results, ctx) {
+    const proposals = [];
+    const gaps = [];
+    const S = ctx.roles.summary, M = S.metrics;
+    const sample = ctx.cleaned.rows.length;
+    const cap = s => sample < 30 ? 'directional' : s;
+    const has = a => a && a.length;
+    const money = v => KPI.interpreter.fmtValue(v, 'currency');
+
+    /* ── gaps: what this data cannot ground ── */
+    if (!has(M.cost)) gaps.push({
+      title: 'Cost efficiency & ROI',
+      reason: 'No cost/spend column in this dataset — cost per outcome, ROAS and budget-allocation calls cannot be grounded here.',
+      unlock: 'add a spend/cost column',
+    });
+    if (!has(M.outcome)) gaps.push({
+      title: 'Outcome performance',
+      reason: 'No outcome column (conversions, orders, goal completions, …) — the dataset cannot show what actions or results were produced.',
+      unlock: 'add a conversions/orders/goals column',
+    });
+    if (!has(M.volume)) gaps.push({
+      title: 'Funnel / reach analysis',
+      reason: 'No volume column (impressions, sessions, sends, …) — rates like conversion % or engagement % cannot be computed.',
+      unlock: 'add a traffic/volume column',
+    });
+    if (!S.time.length) gaps.push({
+      title: 'Trends & direction',
+      reason: 'No date column — nothing can be said about direction, seasonality, or momentum.',
+      unlock: 'add a date column',
+    });
+    if (sample < 30) gaps.push({
+      title: 'Statistical reliability',
+      reason: 'Only ' + sample + ' rows — every figure here is directional. Treat the numbers as indications, not measurements.',
+      unlock: 'a larger dataset',
+    });
+
+    /* ── proposals from computed results ── */
+    const push = (title, kind, strength, evidence) => {
+      proposals.push({ title, kind, strength: cap(strength), evidence: evidence.filter(Boolean) });
+    };
+
+    // 1. allocation — cost per outcome by channel/campaign
+    const cpo = results.find(r => r.kind === 'ratio' && r.id && r.id.startsWith('cpo_'));
+    if (cpo && cpo.rawRows && cpo.rawRows.length >= 3 && cpo.value != null) {
+      const overall = cpo.value;
+      const eligible = cpo.rawRows.filter(r => r.spend > 0 && r.share >= 0.08 && r.ratio != null);
+      const best = eligible.slice().sort((a, b) => a.ratio - b.ratio)[0];
+      const worst = eligible.slice().sort((a, b) => b.ratio - a.ratio)[0];
+      if (best && best.ratio < 0.8 * overall) {
+        push('Shift budget toward ' + best.name,
+          'allocation', 'high',
+          [best.name + ': ' + money(best.ratio) + ' per ' + cpo.columns.outcome.toLowerCase() + ' vs ' + money(overall) + ' average (' + Math.round((1 - best.ratio / overall) * 100) + '% cheaper), ' + best.out + ' outcomes across ' + money(best.spend) + ' spend',
+           'Moving share of spend toward channels with a lower cost per outcome is the highest-leverage allocation visible in this data.']);
+      }
+      if (worst && worst.ratio > 1.6 * overall) {
+        push('Review ' + worst.name + ' spend',
+          'review', 'medium',
+          [worst.name + ': ' + money(worst.ratio) + ' per ' + cpo.columns.outcome.toLowerCase() + ' vs ' + money(overall) + ' average (' + Math.round((worst.ratio / overall - 1) * 100) + '% more expensive), ' + Math.round(worst.share) + '% of spend',
+           'Consider pausing or renegotiating before further budget is committed.']);
+      }
+    }
+
+    // 2. ROAS by channel
+    const roas = results.find(r => r.kind === 'ratio' && r.id && r.id.startsWith('roas_'));
+    if (roas && roas.rawRows && roas.rawRows.length >= 3 && roas.value != null) {
+      const overall = roas.value;
+      const eligible = roas.rawRows.filter(r => r.spend > 0 && r.share >= 0.08);
+      const best = eligible.slice().sort((a, b) => (b.out / b.spend) - (a.out / a.spend))[0];
+      const worst = eligible.slice().sort((a, b) => (a.out / a.spend) - (b.out / b.spend))[0];
+      const bestRoas = best ? best.out / best.spend : null;
+      const worstRoas = worst ? worst.out / worst.spend : null;
+      if (best && bestRoas >= 1.8 * overall) {
+        push('Reallocate toward ' + best.name,
+          'allocation', 'high',
+          [best.name + ' returns ' + KPI.interpreter.fmtValue(bestRoas, 'ratio') + ' on every ₹1 vs ' + KPI.interpreter.fmtValue(overall, 'ratio') + ' overall — the strongest return in this dataset',
+           'This is a numeric call, not a suggestion: at current efficiency the same budget would return ' + KPI.interpreter.fmtValue(bestRoas / overall, 'ratio') + '× more if shifted entirely.']);
+      }
+      if (worst && worstRoas != null && worstRoas <= 0.5 * overall) {
+        push('Reassess ' + worst.name,
+          'review', 'medium',
+          [worst.name + ' returns only ' + KPI.interpreter.fmtValue(worstRoas, 'ratio') + ' per ₹1 vs ' + KPI.interpreter.fmtValue(overall, 'ratio') + ' overall (' + Math.round(worst.share) + '% of spend)',
+           'Lowest-return line in the dataset — worth a targeting or creative review before more budget goes in.']);
+      }
+    }
+
+    // 3. trend alerts on outcome metrics
+    for (const m of M.outcome) {
+      const t = results.find(r => r.kind === 'trend' && r.columns && r.columns.metric === m.header);
+      if (t && t.periods && t.periods.length >= 2) {
+        const last = t.periods[t.periods.length - 1], prev = t.periods[t.periods.length - 2];
+        const pct = prev.value ? (last.value - prev.value) / prev.value * 100 : null;
+        if (pct != null && pct <= -15) {
+          push(m.header + ' dropped ' + Math.abs(pct).toFixed(0) + '% MoM — investigate',
+            'investigate', 'high',
+            [m.header + ' fell from ' + KPI.interpreter.fmtFull(prev.value, t.unit) + ' (' + prev.period + ') to ' + KPI.interpreter.fmtFull(last.value, t.unit) + ' (' + last.period + ')',
+             'A single-period drop of this size is an investigation trigger, not yet a verdict — check the contributing ' + (S.dimensions[0] ? S.dimensions[0].header : 'dimensions') + ' before acting.']);
+        } else if (pct != null && pct >= 15) {
+          push(m.header + ' up ' + pct.toFixed(0) + '% MoM — understand what worked',
+            'sustain', 'medium',
+            [m.header + ' rose from ' + KPI.interpreter.fmtFull(prev.value, t.unit) + ' (' + prev.period + ') to ' + KPI.interpreter.fmtFull(last.value, t.unit) + ' (' + last.period + ')',
+             'Identify the driver before it drifts — growth this steep usually has an identifiable cause.']);
+        }
+      }
+    }
+
+    // 4. concentration risk
+    const bd = results.find(r => r.kind === 'breakdown' && r.topShare != null);
+    if (bd && bd.topShare > 60) {
+      push('Concentration risk: ' + bd.top + ' alone is ' + bd.topShare.toFixed(0) + '% of ' + (bd.columns.metric || 'the metric'),
+        'risk', 'medium',
+        ['' + bd.top + ': ' + bd.topShare.toFixed(0) + '% of ' + bd.columns.metric + ' — any change to this single ' + (bd.columns.dimension || 'segment') + ' moves the whole number',
+         'Diversification decisions are yours, but the exposure is measurable in this data.']);
+    }
+
+    // 5. engagement rate
+    const eng = results.find(r => r.kind === 'rate' && r.title && /engagement rate/i.test(r.title));
+    if (eng && eng.value != null && eng.value < 2) {
+      push('Engagement is low relative to reach (' + eng.value.toFixed(1) + '%)',
+        'review', 'medium',
+        ['Engagement across the dataset is ' + eng.value.toFixed(1) + '% of ' + (eng.columns && eng.columns.volume ? eng.columns.volume : 'volume') + ' — content/format review is a reasonable next step',
+         'No benchmark is assumed here; the observation is the number itself.']);
+    }
+
+    // 6. bounce rate
+    const bounce = results.find(r => r.kind === 'rate' && r.title && /bounce rate/i.test(r.title));
+    if (bounce && bounce.value != null && bounce.value > 5) {
+      push('Bounce rate of ' + bounce.value.toFixed(1) + '% suggests list hygiene work',
+        'review', 'medium',
+        [bounce.value.toFixed(1) + '% of ' + (bounce.columns && bounce.columns.volume ? bounce.columns.volume : 'sends') + ' bounced — invalid addresses directly cost sender reputation',
+         'Numbers here are the data\u2019s own; the remedy (list cleaning) is standard practice.']);
+    }
+
+    // 7. stock gaps
+    const stock = results.find(r => r.kind === 'stock');
+    if (stock && stock.value > 0) {
+      push('Restock ' + stock.value + ' item' + (stock.value === 1 ? '' : 's') + ' below reorder point',
+        'restock', 'high',
+        [stock.value + ' of ' + ctx.cleaned.rows.length + ' items are below reorder point (see the stock table for exact shortfalls)',
+         'Shortfall = reorder_point − stock_qty per item; the largest gaps are visible in the analysis above.']);
+    }
+
+    return { proposals, gaps };
+  }
+
+  return { generate };
+})();
+
+/* ===== exporter.js ===== */
+/* exporter.js — client-side CSV export (PRD §10.5). */
+
+globalThis.KPI = globalThis.KPI || {};
+KPI.exporter = (function () {
+  function esc(v) {
+    const s = String(v == null ? '' : v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+
+  function buildCsv(results, cleaned) {
+    const rows = [['kpi_id', 'kpi_name', 'source', 'period', 'value', 'unit', 'formula_text', 'source_columns', 'flags', 'interpretation']];
+    for (const r of results) {
+      const srcCols = Object.entries(r.source_columns || {})
+        .map(([f, c]) => f + '=' + c).join('; ');
+      const flagStr = (r.flags || []).join(', ');
+      for (const p of r.periods || []) {
+        rows.push([r.kpi_id, r.name, r.source, p.period, fmt(p.value), r.unit, r.formula_text, srcCols, flagStr, r.interpretation]);
+      }
+      if (r.single) {
+        rows.push([r.kpi_id, r.name, r.source, 'overall', fmt(r.single.value), r.unit, r.formula_text, srcCols, flagStr, r.interpretation]);
+      }
+    }
+    return rows.map(r => r.map(esc).join(',')).join('\n');
+  }
+
+  function fmt(v) { return v == null ? '' : (typeof v === 'number' ? Math.round(v * 1000) / 1000 : v); }
+
+  function download(filename, csv) {
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  }
+
+  return { buildCsv, download };
+})();
+
+/* ===== ui.js ===== */
+/* ui.js — monochrome render functions. Screens: upload / inspect / identify / plan / results. */
+
+globalThis.KPI = globalThis.KPI || {};
+KPI.ui = (function () {
+
+  const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+  function topbar(state) {
+    const clear = state.table ? '<button class="btn-clear" onclick="KPI.app.clearAll()">Clear &amp; start over</button>' : '';
+    return '<header class="topbar"><div class="topbar-inner">' +
+      '<div class="brand">KPI Analyzer<small>upload a dataset · understand what it is</small></div>' +
+      '<div class="top-right">' + clear + '<span class="privacy-badge">nothing leaves your browser</span></div>' +
+      '</div></header>';
+  }
+
+  const STEP_NAMES = ['Upload', 'Inspect', 'Identify', 'Plan', 'Results'];
+  function steps(cur) {
+    const idx = { upload: 0, preview: 1, identify: 2, plan: 3, results: 4 }[cur] ?? 0;
+    let html = '<nav class="steps" aria-label="Progress">';
+    STEP_NAMES.forEach((n, i) => {
+      if (i > 0) html += '<span class="sep" aria-hidden="true"></span>';
+      const cls = i < idx ? 'done' : i === idx ? 'cur' : '';
+      html += '<span class="st ' + cls + '"><span class="stnum">' + String(i + 1).padStart(2, '0') + '</span>' + n + '</span>';
+    });
+    return html + '</nav>';
+  }
+
+  function logHtml(log) {
+    if (!log || !log.length) return '';
+    const glyph = { info: '—', warn: '⚠', error: '✕' };
+    const items = log.map(l => '<div class="li ' + l.level + '"><span class="lvl">' + (glyph[l.level] || '—') + '</span><span>' + esc(l.msg) + '</span></div>').join('');
+    return '<details class="log"><summary><span>Processing log — ' + log.length + ' entr' + (log.length === 1 ? 'y' : 'ies') + '</span></summary><div class="log-items">' + items + '</div></details>';
+  }
+
+  function flagTags(flags) {
+    if (!flags || !flags.length) return '';
+    return '<div class="flags-row">' + flags.map(f => '<span class="flag ' + (f.startsWith('directional') ? 'warn' : '') + '">' + esc(f) + '</span>').join('') + '</div>';
+  }
+
+  /* ── 1. upload ── */
+  function upload(state) {
+    return '<div class="card hero">' +
+      '<div class="kicker">01 — Upload</div>' +
+      '<h1>What is this dataset?</h1>' +
+      '<p class="lead">Drop any CSV export in. We inspect the columns, the values, and the structure — then work out for ourselves what kind of data it is, what is worth analyzing, and which decisions the numbers can actually ground.</p>' +
+      '<div class="drop" id="dropzone">' +
+      '<div class="big">Drop your CSV here</div>' +
+      '<div class="hint">or click to browse · CSV only · ≤ 10 MB · ≤ 50,000 rows · ≤ 200 columns</div>' +
+      '<input type="file" id="fileInput" accept=".csv,text/csv" />' +
+      '</div>' +
+      '<div class="samples">No file handy? Try a sample — ' +
+      '<button onclick="KPI.app.loadSample(\'campaigns\')">Campaigns</button><span class="sep">·</span>' +
+      '<button onclick="KPI.app.loadSample(\'email\')">Email / CRM</button><span class="sep">·</span>' +
+      '<button onclick="KPI.app.loadSample(\'web\')">Web analytics</button><span class="sep">·</span>' +
+      '<button onclick="KPI.app.loadSample(\'social\')">Social</button><span class="sep">·</span>' +
+      '<button onclick="KPI.app.loadSample(\'sales\')">Sales</button><span class="sep">·</span>' +
+      '<button onclick="KPI.app.loadSample(\'inventory\')">Inventory</button><span class="sep">·</span>' +
+      '<button onclick="KPI.app.loadSample(\'mystery\')">Ambiguous</button>' +
+      '</div>' +
+      '<p class="note-line">Privacy — files are processed entirely in your browser: no upload, no storage, zero network calls. Nothing persists after you close the tab.</p>' +
+      '</div>';
+  }
+
+  /* ── 2. inspect ── */
+  function preview(state) {
+    const t = state.table, c = state.cleaned, meta = t.meta;
+    const stats = [
+      { v: meta.rowCount.toLocaleString('en-IN'), l: 'Rows' },
+      { v: String(meta.colCount), l: 'Columns' },
+      { v: '"' + meta.delimiter + '"', l: 'Delimiter' },
+      { v: esc(meta.encoding), l: 'Encoding' },
+    ];
+    if (c.meta.duplicateRowsRemoved > 0) stats.push({ v: '−' + c.meta.duplicateRowsRemoved, l: 'Duplicates removed' });
+    const statStrip = '<div class="stat-strip">' + stats.map(s => '<div class="stat"><div class="sv">' + s.v + '</div><div class="sl">' + s.l + '</div></div>').join('') + '</div>';
+    const warns = c.warnings.filter(w => w.level === 'warn');
+    const notices = warns.length ? warns.map(w => '<div class="notice warn"><b>Heads up.</b> ' + esc(w.msg) + '</div>').join('') : '';
+    let headerConfirm = '';
+    if (meta.headerless) {
+      headerConfirm = '<div class="notice"><b>Headerless file.</b> The first row looks like data, so we generated column names (col_1…). ' +
+        '<button class="btn small" style="margin-left:8px" onclick="KPI.app.reparse(true)">Use generated names</button> ' +
+        '<button class="btn small ghost" onclick="KPI.app.reparse(false)">Treat row 1 as headers</button></div>';
+    }
+    let rowsHtml = '';
+    for (let i = 0; i < Math.min(5, c.rows.length); i++) rowsHtml += '<tr>' + c.rows[i].s.map(v => '<td class="mono">' + esc(v) + '</td>').join('') + '</tr>';
+    const cols = c.columns.map(x => '<th>' + esc(x.header) + '</th>').join('');
+    return '<div class="card">' +
+      '<div class="kicker">02 — Inspect</div>' +
+      '<h2 style="font-size:22px">' + esc(meta.fileName || 'dataset') + '</h2>' +
+      statStrip + notices + headerConfirm +
+      '<div class="tblwrap"><table class="tbl"><tr>' + cols + '</tr>' + rowsHtml + '</table></div>' +
+      '<p class="note-line">First 5 rows · every cleaning decision is logged below and on the results screen.</p>' +
+      '<div class="btn-row"><button class="btn" onclick="KPI.app.runIdentify()">Continue — identify the data</button></div>' +
+      '</div>' + logHtml(state.log);
+  }
+
+  /* ── 3. identify (the core step) ── */
+  function identify(state) {
+    const id = state.identification;
+    let body = '';
+
+    if (id.unclear) {
+      body = '<div class="det-big">I can’t confidently say what this is.</div>' +
+        '<div class="notice warn" style="margin-top:14px"><b>Being honest rather than guessing.</b> ' + esc(id.unclearReason) + '</div>' +
+        '<p class="det-note">I’ll continue with exploratory analysis derived only from what I could confirm — and every result will be marked directional. You can also tell me what you think it is; the analysis still derives from your columns either way.</p>';
+    } else {
+      const pct = Math.round(id.confidence * 100);
+      body = '<div class="det-line"><div class="det-big">This looks like <b>' + esc(id.label) + '</b></div>' +
+        '<div class="conf-num">' + pct + '<span class="pct">%</span></div></div>' +
+        '<p class="det-note">' + esc(id.desc) + '</p>' +
+        '<div class="conf-track"><div class="conf-fill" style="width:' + Math.max(4, pct) + '%"></div></div>' +
+        '<div class="conf-scale"><span>0%</span><span>evidence-weighted confidence · runner-up: ' + esc(id.runnerUp.label) + '</span><span>100%</span></div>' +
+        (id.tier === 'weak'
+          ? '<div class="notice warn" style="margin-top:18px"><b>Modest signal.</b> Confidence is capped at 70% because the evidence is thin — please sanity-check this characterization before acting on it.</div>'
+          : '');
+    }
+
+    // facet reasoning chips
+    const facetChips = Object.entries(id.facets)
+      .filter(([, f]) => f.found)
+      .map(([k, f]) => '<span class="tag facet">' + esc(k.replace(/_/g, ' ')) + ' <i>' + esc(f.confidence || '') + '</i></span>').join('') || '<span class="faint">no facets confirmed</span>';
+    const missingChips = Object.entries(id.facets)
+      .filter(([k, f]) => !f.found && ['cost', 'revenue', 'outcome', 'volume', 'engagement', 'time'].includes(k))
+      .map(([k, f]) => '<span class="tag missing-facet">✗ ' + esc(k.replace(/_/g, ' ')) + '</span>').join('');
+
+    // column role table (transparency)
+    const roleRows = state.roles.columns.map(c =>
+      '<tr><td class="mono">' + esc(c.header) + '</td><td>' + esc(c.role) + (c.sub ? ' <span class="faint">· ' + esc(c.sub) + '</span>' : '') + '</td><td>' + esc(c.identity || '—') + '</td><td class="mono">' + esc(c.confidence) + '</td><td class="faint">' + esc((c.evidence || []).join('; ')) + '</td></tr>').join('');
+
+    return '<div class="card">' +
+      '<div class="kicker">03 — Identify · the core step</div>' + body +
+      '<div style="margin-top:24px"><div class="sig-name">What I found (evidence, not guesses)</div><div>' + facetChips + '</div></div>' +
+      (missingChips ? '<div style="margin-top:10px"><div class="sig-name">Key signals I did NOT find</div><div>' + missingChips + '</div></div>' : '') +
+      '<div style="margin-top:24px"><div class="sig-name">Column roles assigned from headers, values and structure</div>' +
+      '<div class="tblwrap"><table class="tbl"><tr><th>Column</th><th>Role</th><th>Identity</th><th>Confidence</th><th>Evidence</th></tr>' + roleRows + '</table></div></div>' +
+      '<div class="field-line" style="margin-top:24px"><b>Tell us what you think it is</b> <span class="faint">(optional — the analysis below derives from your columns regardless)</span></div>' +
+      '<select id="archetypeSel" class="minimal">' +
+      Object.entries(KPI.identify.ARCH).map(([k, a]) => '<option value="' + k + '"' + (k === state.identification.archetype ? ' selected' : '') + '>' + esc(a.label) + '</option>').join('') +
+      '<option value="unclear" ' + (state.identification.unclear ? 'selected' : '') + '>I’m not sure</option></select>' +
+      '<div class="btn-row"><button class="btn" onclick="KPI.app.confirmIdentify()">Continue — derive the analysis plan</button></div>' +
+      '</div>' + logHtml(state.log);
+  }
+
+  /* ── 4. plan ── */
+  function plan(state) {
+    const items = state.plan;
+    const computable = items.filter(i => i.computable);
+    const blocked = items.filter(i => !i.computable);
+    const selCount = computable.filter(i => state.selected[i.id]).length;
+
+    const itemHtml = it => {
+      const cols = it.cols ? Object.entries(it.cols).map(([k, v]) => k + ' ← ' + v).join(' · ') : '';
+      if (it.computable) {
+        return '<div class="kpi-item ok"><label>' +
+          '<input type="checkbox" data-plan="' + it.id + '" ' + (state.selected[it.id] ? 'checked' : '') + ' onchange="KPI.app.toggleSelect(\'' + it.id + '\',this.checked)">' +
+          '<span><span class="kname">' + esc(it.title) + '</span>' +
+          '<span class="ksum">' + (cols ? 'uses: <code>' + esc(cols) + '</code>' : '') + '</span></span></label></div>';
+      }
+      return '<div class="kpi-item missing"><span style="flex:1"><span class="kname">' + esc(it.title) + '</span>' +
+        '<span class="ksum" style="color:var(--warn)">Not supported by this data — ' + esc(it.why_not) + '</span></span></div>';
+    };
+
+    return '<div class="card">' +
+      '<div class="kicker">04 — Analysis plan</div>' +
+      '<h2 style="font-size:22px">What this data can support</h2>' +
+      '<p class="lead" style="font-size:13.5px">Every item below was <b>derived from your column evidence</b> — not picked from a fixed menu. If a type of analysis is absent, the reason is shown.</p>' +
+      '<div class="section-head"><span>We can analyze</span><span class="cnt">' + computable.length + '</span></div>' +
+      (computable.length ? computable.map(itemHtml).join('') : '<p class="muted">Nothing computable — see below.</p>') +
+      '<div class="section-head"><span>Not supported by this data</span><span class="cnt">' + blocked.length + '</span></div>' +
+      (blocked.length ? blocked.map(itemHtml).join('') : '<p class="muted">No gaps — everything applicable is computable.</p>') +
+      '<div class="btn-row"><button class="btn" onclick="KPI.app.runSelected()">Analyze selected (' + selCount + ')</button> ' +
+      '<button class="btn ghost" onclick="KPI.app.runAll()">Run all computable</button></div>' +
+      '</div>' + logHtml(state.log);
+  }
+
+  /* ── 5. results ── */
+  function sparkSvg(periods, unit) {
+    const pts = (periods || []).filter(p => p.value != null).map(p => ({ v: p.value, label: p.period }));
+    if (pts.length < 2) return '';
+    const vals = pts.map(p => p.v);
+    const min = Math.min(...vals), max = Math.max(...vals), span = (max - min) || 1;
+    const W = 110, H = 30, P = 3;
+    const x = i => P + (i * (W - 2 * P)) / (pts.length - 1);
+    const y = v => H - P - ((v - min) / span) * (H - 2 * P);
+    const points = pts.map((p, i) => x(i).toFixed(1) + ',' + y(p.v).toFixed(1)).join(' ');
+    return '<svg class="sparkline" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" aria-hidden="true">' +
+      '<polyline points="' + points + '" fill="none" stroke="currentColor" stroke-width="1.4"/>' +
+      '<circle cx="' + x(pts.length - 1).toFixed(1) + '" cy="' + y(pts[pts.length - 1].v).toFixed(1) + '" r="2.2" fill="currentColor"/></svg>';
+  }
+
+  function resultCard(res) {
+    const val = KPI.interpreter.fmtFull(res.value, res.unit);
+    let trend = '', table = '';
+    if (res.kind === 'trend' || res.kind === 'counts') {
+      if (res.periods && res.periods.length >= 2) {
+        const last = res.periods[res.periods.length - 1], prev = res.periods[res.periods.length - 2];
+        const pct = prev.value ? (last.value - prev.value) / prev.value * 100 : null;
+        const dir = pct == null || Math.abs(pct) < 5 ? 'flat' : pct > 0 ? 'up' : 'down';
+        const arrow = dir === 'up' ? '↑' : dir === 'down' ? '↓' : '→';
+        trend = '<div class="kc-mid"><div class="trend ' + dir + '"><span class="tdelta">' + arrow + ' ' + (pct == null ? '—' : Math.abs(pct).toFixed(0) + '%') + '</span> vs prior period<span class="tnote">' + res.periods.length + ' periods' + (res.periods.length < 3 ? ' — no trend claimed' : '') + '</span></div>' + sparkSvg(res.periods, res.unit) + '</div>';
+      }
+    }
+    if (res.table) {
+      table = '<div class="tblwrap"><table class="tbl"><tr>' + res.table.cols.map(c => '<th>' + esc(c) + '</th>').join('') + '</tr>' +
+        res.table.rows.slice(0, 12).map(rr => '<tr>' + rr.map(c => '<td class="r mono">' + esc(c) + '</td>').join('') + '</tr>').join('') + '</table></div>';
+    }
+    const srcs = res.columns ? Object.entries(res.columns).map(([k, v]) => k + ' ← ' + v).join(' · ') : '';
+    return '<div class="kpi-card">' +
+      '<div class="kc-top"><span class="kc-name">' + esc(res.title || res.id) + '</span><span class="kc-src">' + esc(res.confidence || '') + '</span></div>' +
+      '<div><div class="kc-value">' + val + '</div><div class="faint" style="margin-top:6px">' + esc(res.unit || '') + '</div></div>' +
+      '<div class="kc-rule"></div>' + trend +
+      '<div class="interp">' + esc(res.insight || '') + '</div>' +
+      flagTags(res.flags) + table +
+      '<div class="formula"><span class="flabel">Formula:</span>' + esc(res.formula || '') + '</div>' +
+      (srcs ? '<div class="srcs"><b>Sources:</b> ' + srcs + '</div>' : '') +
+      '</div>';
+  }
+
+  function results(state) {
+    const r = state.results;
+    const id = state.identification;
+    const idStr = id.unclear ? 'uncertain — exploratory mode'
+      : esc(id.label) + ' · ' + Math.round(id.confidence * 100) + '% evidence-weighted confidence';
+
+    const cards = r.map(resultCard).join('');
+
+    const propHtml = (p, i) => '<div class="proposal">' +
+      '<div class="prop-top"><span class="prop-title">' + esc(p.title) + '</span><span class="prop-strength ' + p.strength + '">' + esc(p.strength) + '</span></div>' +
+      '<ul class="prop-evidence">' + p.evidence.map(e => '<li>' + esc(e) + '</li>').join('') + '</ul>' +
+      '<div class="prop-note">proposal — numbers are yours to act on, nothing runs automatically</div></div>';
+
+    const gapsHtml = state.gaps.length
+      ? state.gaps.map(g => '<div class="gap-item"><div class="gap-title">' + esc(g.title) + '</div>' +
+        '<div class="gap-reason">' + esc(g.reason) + '</div>' +
+        (g.unlock ? '<div class="gap-unlock">unlocked by: <code>' + esc(g.unlock) + '</code></div>' : '') + '</div>').join('')
+      : '<p class="muted">No notable data gaps.</p>';
+
+    return '<div class="card">' +
+      '<div class="kicker">05 — Results</div>' +
+      '<div class="result-head"><div><h2 style="margin-bottom:6px">' + esc(state.fileName) + '</h2>' +
+      '<div class="meta">Identification — <b>' + idStr + '</b> · ' + state.cleaned.rows.length.toLocaleString('en-IN') + ' rows after cleaning<br>' +
+      'Computed in <b>' + state.msElapsed + ' ms</b>, entirely in your browser — zero network calls.</div></div>' +
+      '<button class="btn" onclick="KPI.app.exportCsv()">Export results (CSV)</button></div>' +
+      '<div class="section-head"><span>Analysis — derived from your columns</span><span class="cnt">' + r.length + '</span></div>' +
+      '<div class="kpi-grid">' + cards + '</div>' +
+      '<div class="section-head" style="margin-top:34px"><span>What’s worth considering</span><span class="cnt">' + state.proposals.length + '</span></div>' +
+      (state.proposals.length ? state.proposals.map(propHtml).join('') : '<p class="muted">Nothing rose above the evidence threshold — no proposal is forced.</p>') +
+      '<div class="section-head" style="margin-top:34px"><span>What this data can’t tell us</span><span class="cnt">' + state.gaps.length + '</span></div>' +
+      '<div class="gap-list">' + gapsHtml + '</div>' +
+      '</div>' + logHtml(state.log);
+  }
+
+  function error(state) {
+    return '<div class="card"><div class="kicker">Error</div><h2 style="font-size:22px">Could not process this file</h2>' +
+      '<div class="notice warn"><b>What happened.</b> ' + esc(state.error) + '</div>' +
+      '<div class="btn-row"><button class="btn" onclick="KPI.app.clearAll()">Try another file</button></div></div>';
+  }
+
+  function render(state) {
+    const app = document.getElementById('app');
+    let html = topbar(state) + '<div class="wrap">' + steps(state.screen);
+    switch (state.screen) {
+      case 'upload': html += upload(state); break;
+      case 'preview': html += preview(state); break;
+      case 'identify': html += identify(state); break;
+      case 'plan': html += plan(state); break;
+      case 'results': html += results(state); break;
+      case 'error': html += error(state); break;
+      default: html += '<p>…</p>';
+    }
+    html += '<footer class="footer">KPI Analyzer · identification-first · all computation client-side, zero network calls<br>' +
+      'Every number carries its formula and source columns — proposals cite the numbers behind them, and what the data can’t ground is said out loud.</footer></div>';
+    app.innerHTML = html;
+    if (state.screen === 'upload') wireUpload();
+    window.scrollTo(0, 0);
+  }
+
+  function wireUpload() {
+    const dz = document.getElementById('dropzone');
+    const fi = document.getElementById('fileInput');
+    if (!dz || !fi) return;
+    dz.addEventListener('click', () => fi.click());
+    dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
+    dz.addEventListener('dragleave', () => dz.classList.remove('over'));
+    dz.addEventListener('drop', e => {
+      e.preventDefault(); dz.classList.remove('over');
+      if (e.dataTransfer.files.length) KPI.app.handleFile(e.dataTransfer.files[0]);
+    });
+    fi.addEventListener('change', () => { if (fi.files.length) KPI.app.handleFile(fi.files[0]); fi.value = ''; });
+  }
+
+  return { render };
+})();
+
+/* ===== app.js ===== */
+/* app.js — state machine + pipeline orchestration.
+   upload → inspect → identify (roles + characterization) → plan (derived) → results (+ proposals + gaps). */
+
+globalThis.KPI = globalThis.KPI || {};
+KPI.app = (function () {
+  const state = {
+    screen: 'upload',
+    table: null, cleaned: null, roles: null, identification: null,
+    plan: null, selected: {}, results: null, proposals: [], gaps: [],
+    log: [], error: null, msElapsed: 0, fileName: '', lastText: null,
+  };
+
+  function addLog(level, msg) { state.log.push({ level, msg }); }
+  function mergeWarnings(arr) { if (arr && arr.length) arr.forEach(w => addLog(w.level || 'info', w.msg)); }
+  function render() { KPI.ui.render(state); }
+
+  function handleFile(file) {
+    state.log = []; state.error = null; state.fileName = file.name;
+    const reader = new FileReader();
+    reader.onerror = () => { state.error = 'Could not read the file.'; state.screen = 'error'; render(); };
+    reader.onload = () => {
+      try {
+        const { text } = KPI.parser.decodeBytes(reader.result);
+        ingestText(text, file.name, file.size);
+      } catch (e) { state.error = e.message; state.screen = 'error'; render(); }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function loadSample(key) {
+    state.log = []; state.error = null;
+    const s = KPI.samples[key];
+    state.fileName = s.name;
+    addLog('info', 'Loaded sample dataset: ' + s.name + '. ' + s.note);
+    ingestText(s.csv, s.name, s.csv.length);
+  }
+
+  function ingestText(text, name, size) {
+    state.lastText = text;
+    const table = KPI.parser.parseCSVText(text);
+    table.meta.fileName = name;
+    table.meta.size = size;
+    state.table = table;
+    addLog('info', 'Parsed ' + table.meta.rowCount.toLocaleString('en-IN') + ' rows × ' + table.meta.colCount + ' columns (delimiter "' + table.meta.delimiter + '", ' + table.meta.encoding + ').');
+    mergeWarnings(table.warnings);
+    const cleaned = KPI.cleaner.cleanTable(table);
+    state.cleaned = cleaned;
+    mergeWarnings(cleaned.warnings);
+    addLog('info', 'Type inference: ' + cleaned.columns.map(c => c.header + '→' + c.type).join(', '));
+    state.screen = 'preview';
+    render();
+  }
+
+  function reparse(useGenerated) {
+    if (!state.lastText) return;
+    try {
+      state.log = [];
+      const table = KPI.parser.parseCSVText(state.lastText, { forceHeader: !useGenerated });
+      table.meta.fileName = state.fileName;
+      state.table = table;
+      mergeWarnings(table.warnings);
+      state.cleaned = KPI.cleaner.cleanTable(table);
+      mergeWarnings(state.cleaned.warnings);
+      state.screen = 'preview';
+      render();
+    } catch (e) { state.error = e.message; state.screen = 'error'; render(); }
+  }
+
+  /* ── identification (the core step) ── */
+  function runIdentify() {
+    const roles = KPI.roles.assign(state.cleaned);
+    state.roles = roles;
+    const identification = KPI.identify.characterize(state.cleaned, roles);
+    state.identification = identification;
+    addLog('info', 'Column roles assigned: ' + roles.summary.time.length + ' time, ' + roles.summary.ids.length + ' identifier, ' + roles.summary.dimensions.length + ' dimension, ' +
+      Object.entries(roles.summary.metrics).reduce((a, [k, v]) => a + v.length, 0) + ' metric (' +
+      Object.entries(roles.summary.metrics).filter(([, v]) => v.length).map(([k, v]) => v.length + ' ' + k).join(', ') + ').');
+    if (identification.unclear) addLog('warn', 'Could not confidently identify the dataset — proceeding in exploratory mode with the confirmed facets.');
+    else addLog('info', 'Identified as: ' + identification.label + ' (confidence ' + Math.round(identification.confidence * 100) + '%, tier ' + identification.tier + '). Runner-up: ' + identification.runnerUp.label + '.');
+    state.screen = 'identify';
+    render();
+  }
+
+  function confirmIdentify() {
+    // the label is informational only — the plan is derived from the column roles,
+    // so overriding it never changes the analysis (only what we call the dataset).
+    const sel = document.getElementById('archetypeSel');
+    if (sel && sel.value !== 'unclear' && KPI.identify.ARCH[sel.value]) {
+      const arch = KPI.identify.ARCH[sel.value];
+      state.identification.archetype = sel.value;
+      state.identification.label = arch.label;
+      state.identification.desc = arch.desc;
+      state.identification.unclear = false;
+      addLog('info', 'Label overridden to: ' + arch.label + ' (informational — analysis is still derived from columns).');
+    }
+    state.plan = KPI.analyze.buildPlan(state.cleaned, state.roles);
+    state.selected = {};
+    for (const it of state.plan) if (it.computable) state.selected[it.id] = true;
+    const computable = state.plan.filter(i => i.computable).length;
+    addLog('info', 'Analysis plan derived from column evidence: ' + computable + ' computable, ' + (state.plan.length - computable) + ' not supported by this data.');
+    state.screen = 'plan';
+    render();
+  }
+
+  function toggleSelect(id, checked) { state.selected[id] = checked; }
+
+  function runSelected() {
+    const ids = state.plan.filter(i => i.computable && state.selected[i.id]).map(i => i.id);
+    execute(ids);
+  }
+  function runAll() {
+    const ids = state.plan.filter(i => i.computable).map(i => i.id);
+    execute(ids);
+  }
+
+  function execute(ids) {
+    if (!ids.length) { state.error = 'No analyses selected.'; state.screen = 'plan'; render(); return; }
+    const t0 = performance.now();
+    const results = [];
+    for (const id of ids) {
+      const item = state.plan.find(i => i.id === id);
+      if (!item || !item.computable) continue;
+      try {
+        const res = item.compute();
+        if (res) { res.id = item.id; res.title = res.title || item.title; results.push(res); addLog('info', id + ': computed (' + (res.periods ? res.periods.length + ' periods' : res.table ? 'table' : 'value') + ').'); }
+      } catch (e) { addLog('error', id + ' failed: ' + e.message); }
+    }
+    state.results = results;
+    const prop = KPI.propose.generate(results, { cleaned: state.cleaned, roles: state.roles, identification: state.identification });
+    state.proposals = prop.proposals;
+    state.gaps = prop.gaps;
+    state.msElapsed = Math.round(performance.now() - t0);
+    state.screen = 'results';
+    render();
+  }
+
+  function exportCsv() {
+    const rows = [['section', 'id', 'title', 'value', 'unit', 'insight', 'formula', 'sources', 'confidence', 'flags']];
+    for (const r of state.results) {
+      rows.push(['analysis', r.id, r.title || r.id, KPI.interpreter.fmtFull(r.value, r.unit), r.unit, r.insight, r.formula || '', Object.entries(r.columns || {}).map(([k, v]) => k + '=' + v).join('; '), r.confidence || '', (r.flags || []).join('; ')]);
+    }
+    for (const p of state.proposals) {
+      rows.push(['proposal', '', p.title, '', p.strength, p.evidence.join(' | '), '', '', '', '']);
+    }
+    for (const g of state.gaps) {
+      rows.push(['data_gap', '', g.title, '', '', g.reason + ' (unlocked by: ' + (g.unlock || '') + ')', '', '', '', '']);
+    }
+    const csv = rows.map(r => r.map(v => /[",\n]/.test(String(v)) ? '"' + String(v).replace(/"/g, '""') + '"' : String(v)).join(',')).join('\n');
+    const base = state.fileName.replace(/\.[^.]+$/, '') || 'dataset';
+    KPI.exporter.download('kpi-results-' + base + '.csv', '\uFEFF' + csv);
+  }
+
+  function clearAll() {
+    Object.assign(state, {
+      screen: 'upload', table: null, cleaned: null, roles: null, identification: null,
+      plan: null, selected: {}, results: null, proposals: [], gaps: [],
+      log: [], error: null, msElapsed: 0, fileName: '', lastText: null,
+    });
+    render();
+  }
+
+  // beforeunload: generic browser prompt only — custom text is unsupported (v3.1 fix)
+  window.addEventListener('beforeunload', e => {
+    if (state.table) { e.preventDefault(); e.returnValue = ''; }
+  });
+
+  document.addEventListener('DOMContentLoaded', () => render());
+
+  return { handleFile, loadSample, reparse, runIdentify, confirmIdentify, toggleSelect, runSelected, runAll, exportCsv, clearAll, state };
+})();
+
+
+</script>
+</body>
+</html>

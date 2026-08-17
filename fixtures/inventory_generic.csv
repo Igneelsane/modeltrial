@@ -1,0 +1,15 @@
+sku,product_name,category,warehouse,stock_qty,reorder_point,unit_cost,supplier,last_restock_date
+SKU-100,Item 1,A,Bengaluru,80,118,11159,ImportZone,2026-02-28
+SKU-101,Item 2,B,Delhi,261,86,7913,Acme,2026-07-20
+SKU-102,Item 3,B,Mumbai,221,42,787,Traders,2026-05-18
+SKU-103,Item 4,C,Delhi,153,112,1932,Traders,2026-04-20
+SKU-104,Item 5,C,Mumbai,39,99,7817,Acme,2026-06-15
+SKU-105,Item 6,C,Mumbai,259,103,7770,Traders,2026-07-22
+SKU-106,Item 7,A,Bengaluru,233,59,10642,Traders,2026-04-23
+SKU-107,Item 8,C,Mumbai,100,49,8401,Acme,2026-03-02
+SKU-108,Item 9,A,Mumbai,79,88,4249,Acme,2026-05-04
+SKU-109,Item 10,C,Delhi,289,41,860,Traders,2026-07-23
+SKU-110,Item 11,B,Delhi,94,68,6749,Traders,2026-06-22
+SKU-111,Item 12,B,Mumbai,99,67,2763,Acme,2026-04-06
+SKU-112,Item 13,A,Bengaluru,10,47,7898,ImportZone,2026-02-07
+SKU-113,Item 14,A,Bengaluru,131,63,836,Traders,2026-06-02
