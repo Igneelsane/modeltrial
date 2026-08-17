@@ -193,10 +193,11 @@ KPI.analyze = (function () {
         const overall = vTotal ? oTotal / vTotal * 100 : null;
         let insight = label + ': ' + fmt(overall, 'percent') + ' (' + fmt(oTotal, 'count') + ' ' + out.header + ' across ' + fmt(vTotal, 'count') + ' ' + vol.header + ')';
         let table = null;
+        let periods = [];
         if (timeCol) {
           const rows = cleaned.rows.filter(r => dt(r, timeCol));
           const g = granFor(rows, timeCol);
-          const periods = buckets(rows, timeCol, g).map(b => {
+          periods = buckets(rows, timeCol, g).map(b => {
             const v = sumOf(b.rows, vol.index), o = sumOf(b.rows, out.index);
             return { period: b.label, rate: v ? o / v * 100 : null, n: o };
           });
@@ -206,7 +207,7 @@ KPI.analyze = (function () {
             insight += '. Peaked at ' + fmt(best.rate, 'percent') + ' in ' + best.period + '.';
           }
         }
-        return { kind: 'rate', value: overall, unit: 'percent', insight, formula: 'Σ ' + out.header + ' ÷ Σ ' + vol.header + ' × 100', columns: this.cols, table, flags: flagsFor(cleaned), confidence: 'high' };
+        return { kind: 'rate', value: overall, unit: 'percent', insight, formula: 'Σ ' + out.header + ' ÷ Σ ' + vol.header + ' × 100', columns: this.cols, table, periods, flags: flagsFor(cleaned), confidence: 'high' };
       },
     };
   }

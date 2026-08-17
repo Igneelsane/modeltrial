@@ -90,22 +90,28 @@ KPI.propose = (function () {
       }
     }
 
-    // 3. trend alerts on outcome metrics
+    // 3. trend alerts on outcome metrics (direction-aware for negative outcomes:
+    //    for unsubscribes/bounces a rise is bad, a drop is good)
     for (const m of M.outcome) {
       const t = results.find(r => r.kind === 'trend' && r.columns && r.columns.metric === m.header);
       if (t && t.periods && t.periods.length >= 2) {
         const last = t.periods[t.periods.length - 1], prev = t.periods[t.periods.length - 2];
         const pct = prev.value ? (last.value - prev.value) / prev.value * 100 : null;
-        if (pct != null && pct <= -15) {
-          push(m.header + ' dropped ' + Math.abs(pct).toFixed(0) + '% MoM — investigate',
-            'investigate', 'high',
-            [m.header + ' fell from ' + KPI.interpreter.fmtFull(prev.value, t.unit) + ' (' + prev.period + ') to ' + KPI.interpreter.fmtFull(last.value, t.unit) + ' (' + last.period + ')',
-             'A single-period drop of this size is an investigation trigger, not yet a verdict — check the contributing ' + (S.dimensions[0] ? S.dimensions[0].header : 'dimensions') + ' before acting.']);
-        } else if (pct != null && pct >= 15) {
-          push(m.header + ' up ' + pct.toFixed(0) + '% MoM — understand what worked',
-            'sustain', 'medium',
-            [m.header + ' rose from ' + KPI.interpreter.fmtFull(prev.value, t.unit) + ' (' + prev.period + ') to ' + KPI.interpreter.fmtFull(last.value, t.unit) + ' (' + last.period + ')',
-             'Identify the driver before it drifts — growth this steep usually has an identifiable cause.']);
+        if (pct != null && Math.abs(pct) >= 15) {
+          const worsening = m.negative ? pct > 0 : pct < 0;
+          const what = m.negative ? 'rose' : 'dropped';
+          const dirWord = m.negative ? 'up' : 'down';
+          if (worsening) {
+            push(m.header + ' ' + what + ' ' + Math.abs(pct).toFixed(0) + '% MoM — investigate',
+              'investigate', 'high',
+              [m.header + ' moved from ' + KPI.interpreter.fmtFull(prev.value, t.unit) + ' (' + prev.period + ') to ' + KPI.interpreter.fmtFull(last.value, t.unit) + ' (' + last.period + ')',
+               'A single-period move of this size is an investigation trigger, not yet a verdict — check the contributing ' + (S.dimensions[0] ? S.dimensions[0].header : 'dimensions') + ' before acting.']);
+          } else {
+            push(m.header + ' ' + (m.negative ? 'dropped' : 'rose') + ' ' + Math.abs(pct).toFixed(0) + '% MoM — understand what worked',
+              'sustain', 'medium',
+              [m.header + ' moved from ' + KPI.interpreter.fmtFull(prev.value, t.unit) + ' (' + prev.period + ') to ' + KPI.interpreter.fmtFull(last.value, t.unit) + ' (' + last.period + ')',
+               'Identify the driver before it drifts — a move this steep usually has an identifiable cause.']);
+          }
         }
       }
     }
@@ -119,22 +125,37 @@ KPI.propose = (function () {
          'Diversification decisions are yours, but the exposure is measurable in this data.']);
     }
 
-    // 5. engagement rate
+    // 5. engagement rate — SELF-RELATIVE: flagged only against this dataset's own
+    //    history (latest period vs its own average), never a universal threshold
     const eng = results.find(r => r.kind === 'rate' && r.title && /engagement rate/i.test(r.title));
-    if (eng && eng.value != null && eng.value < 2) {
-      push('Engagement is low relative to reach (' + eng.value.toFixed(1) + '%)',
-        'review', 'medium',
-        ['Engagement across the dataset is ' + eng.value.toFixed(1) + '% of ' + (eng.columns && eng.columns.volume ? eng.columns.volume : 'volume') + ' — content/format review is a reasonable next step',
-         'No benchmark is assumed here; the observation is the number itself.']);
+    if (eng && eng.periods && eng.periods.length >= 3) {
+      const pairs = eng.periods.filter(p => p.rate != null);
+      if (pairs.length >= 3) {
+        const mean = pairs.reduce((a, p) => a + p.rate, 0) / pairs.length;
+        const last = pairs[pairs.length - 1];
+        if (last.rate < 0.6 * mean) {
+          push('Engagement trailing its own average (' + last.rate.toFixed(2) + '% vs ' + mean.toFixed(2) + '% average)',
+            'review', 'medium',
+            ['engagement rate: ' + last.rate.toFixed(2) + '% in ' + last.period + ' vs the dataset\u2019s own ' + mean.toFixed(2) + '% average across ' + pairs.length + ' periods',
+             'flagged against this dataset\u2019s own history — no external benchmark is assumed.']);
+        }
+      }
     }
 
-    // 6. bounce rate
+    // 6. bounce rate — SELF-RELATIVE: rising relative to its own history only
     const bounce = results.find(r => r.kind === 'rate' && r.title && /bounce rate/i.test(r.title));
-    if (bounce && bounce.value != null && bounce.value > 5) {
-      push('Bounce rate of ' + bounce.value.toFixed(1) + '% suggests list hygiene work',
-        'review', 'medium',
-        [bounce.value.toFixed(1) + '% of ' + (bounce.columns && bounce.columns.volume ? bounce.columns.volume : 'sends') + ' bounced — invalid addresses directly cost sender reputation',
-         'Numbers here are the data\u2019s own; the remedy (list cleaning) is standard practice.']);
+    if (bounce && bounce.periods && bounce.periods.length >= 3) {
+      const pairs = bounce.periods.filter(p => p.rate != null);
+      if (pairs.length >= 3) {
+        const mean = pairs.reduce((a, p) => a + p.rate, 0) / pairs.length;
+        const last = pairs[pairs.length - 1];
+        if (last.rate > 1.4 * mean) {
+          push('Bounce rate rising relative to its own history (' + last.rate.toFixed(1) + '% vs ' + mean.toFixed(1) + '% average)',
+            'review', 'medium',
+            ['bounce rate: ' + last.rate.toFixed(1) + '% in ' + last.period + ' vs the dataset\u2019s own ' + mean.toFixed(1) + '% average across ' + pairs.length + ' periods',
+             'a rising share of undeliverable addresses can cost sender reputation — but this flag is the dataset\u2019s own trend, not an external benchmark.']);
+        }
+      }
     }
 
     // 7. stock gaps
